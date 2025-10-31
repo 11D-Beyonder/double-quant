@@ -1,0 +1,12 @@
+[project]
+name = "double-quant"
+version = "0.1.0"
+description = "Quantum quantitive finance"
+readme = "README.md"
+authors = [{ name = "11D-Beyonder", email = "ztz20001117@gmail.com" }]
+requires-python = ">=3.11"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
