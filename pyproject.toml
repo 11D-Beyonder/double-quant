@@ -5,9 +5,16 @@ description = "Quantum quantitive finance"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "numpy>=2.3.4",
     "qiskit>=2.2.3",
+    "scipy>=1.16.3",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
