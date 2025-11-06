@@ -1,3 +1,4 @@
+from typing_extensions import override
 import numpy as np
 import scipy as sp
 from abc import ABC, abstractmethod
@@ -34,6 +35,7 @@ class NumPyLinearSolver(LinearSolver):
     optimized LAPACK backend.
     """
 
+    @override
     def solve(self, A: np.ndarray, b: np.ndarray) -> np.ndarray:
         """
         Solve the linear system Ax = b using NumPy's implementation.
@@ -54,6 +56,7 @@ class SciPyLinearSolver(LinearSolver):
     compared to NumPy for certain problem types.
     """
 
+    @override
     def solve(self, A: np.ndarray, b: np.ndarray) -> np.ndarray:
         """
         Solve the linear system Ax = b using SciPy's implementation.
