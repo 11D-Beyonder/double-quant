@@ -4,7 +4,12 @@ version = "0.1.0"
 description = "Quantum quantitive finance"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["qiskit>=2.2.3", "scipy-stubs[scipy]>=1.16.3.0"]
+dependencies = [
+    "matplotlib>=3.10.8",
+    "pylatexenc>=2.10",
+    "qiskit>=2.2.3",
+    "scipy-stubs[scipy]>=1.16.3.0",
+]
 
 
 [build-system]
@@ -16,3 +21,7 @@ dev = ["pytest>=8.4.2"]
 
 [tool.pyright]
 typeCheckingMode = "basic"
+
+[[tool.uv.index]]
+url = "https://mirrors.zju.edu.cn/pypi/web/simple"
+default = true
