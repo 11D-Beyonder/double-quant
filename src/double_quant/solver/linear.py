@@ -1,7 +1,19 @@
-from typing_extensions import override
+from abc import ABC, abstractmethod
+from typing import final
+
 import numpy as np
 import scipy as sp
-from abc import ABC, abstractmethod
+from qiskit import (
+    QuantumCircuit,
+    QuantumRegister,
+)
+from qiskit.circuit.library import (
+    PhaseEstimation,
+    StatePreparation,
+)
+from typing_extensions import override
+
+from double_quant.optimizer import SAPO, LinearSolverOptimizer
 
 
 class LinearSolver(ABC):
@@ -66,3 +78,67 @@ class SciPyLinearSolver(LinearSolver):
             ValueError: If the input dimensions are incompatible.
         """
         return sp.linalg.solve(A, b)
+
+
+class HhlCircuit(QuantumCircuit):
+    @property
+    def phase_qubit_num(self) -> int:
+        raise NotImplementedError
+
+
+class QuantumLinearSolver(LinearSolver):
+    @final
+    class LinearSystem:
+        def __init__(self, matrix: np.ndarray, vector: np.ndarray) -> None:
+            # TODO: check both size
+            self.matrix = matrix
+            self.vector = vector
+            self._validate_self()
+
+        def _validate_self(self):
+            # TODO: validate a linear system
+            ...
+
+    def __init__(self, optimizer: LinearSolverOptimizer | None = None) -> None:
+        super().__init__()
+        self._optimizer: LinearSolverOptimizer | None = optimizer
+        self._hhl_circuit: HhlCircuit | None = None
+        self._linear_system: QuantumLinearSolver.LinearSystem | None = None
+
+    @override
+    def solve(self, A: np.ndarray, b: np.ndarray) -> np.ndarray:
+        self._linear_system = self.LinearSystem(A, b)
+        # TODO: construct circuit and then extract the solution.
+        circuit = self._construct_circuit()
+
+    def _construct_circuit(self):
+        assert self._linear_system is not None, (
+            "Linear system must be initialized before constructing circuit"
+        )
+        assert isinstance(self._optimizer, SAPO)
+
+        vector_reg = QuantumRegister(
+            int(np.log2(np.shape(self._linear_system.vector))), name="vector"
+        )
+        phase_reg = QuantumRegister(self._optimizer.qpe_qubit_num, name="phase")
+        flag_reg = QuantumRegister(1, name="flag")
+
+        vector_circuit = QuantumCircuit(vector_reg.size, name="vector")
+        vector_circuit.append(StatePreparation(self._linear_system.vector.tolist()))
+
+        matrix_circuit = QuantumCircuit(vector_reg.size, name="U")
+        matrix_circuit.unitary(
+            sp.linalg.expm(
+                1j
+                * self._linear_system.matrix
+                * self._optimizer.hamiltonian_simulation_time
+            ),
+            matrix_circuit.qubits,
+        )
+        qpe_gate = PhaseEstimation(phase_reg.size, matrix_circuit)
+
+        # control rotation
+
+        ans = QuantumCircuit(vector_reg, phase_reg, flag_reg, name="HHL")
+        # TODO: assembly circuit
+        return ans
