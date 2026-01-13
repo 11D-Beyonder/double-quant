@@ -26,6 +26,9 @@ class SAPO(LinearSolverOptimizer):
         self._norm_constant: float | None = None
 
     @property
+    def qpe_qubit_num(self) -> int: ...
+
+    @property
     def matrix_init_scaling(self) -> float:
         if self._matrix_init_scaling is None:
             if self._eigen_predictor is None:

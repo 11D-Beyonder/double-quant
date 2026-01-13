@@ -1,10 +1,20 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+!*.code-workspace
 
-# Virtual environments
-.venv
+# MacOS General
+.DS_Store
+__MACOSX/
+
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+
+# Claude Code
+.claude/
