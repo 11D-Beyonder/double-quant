@@ -1,18 +1,21 @@
 import numpy as np
 import pytest
 from double_quant.solver.linear import (
-    LinearSolver,
     NumPyLinearSolver,
+    QuantumLinearSolver,
     SciPyLinearSolver,
 )
+import matplotlib.pyplot as plt
 
 
-class TestLinearSolver:
-    def test_linear_solver_abstract_method(self):
-        """Test that LinearSolver.solve() is not implemented."""
-        solver = LinearSolver()
-        with pytest.raises(NotImplementedError):
-            solver.solve(np.array([[1, 2], [3, 4]]), np.array([1, 2]))
+class TestQuantumLinearSolver:
+    def test_print_circuit(self):
+        solver = QuantumLinearSolver()
+        num_ele = 2**2
+        solver._linear_system = QuantumLinearSolver._LinearSystem.random(num_ele)
+        circuit = solver._construct_circuit()
+        circuit.decompose().draw()
+        plt.show()
 
 
 class TestNumPyLinearSolver:
@@ -51,7 +54,7 @@ class TestNumPyLinearSolver:
         b = np.array([1, 2])
 
         with pytest.raises(np.linalg.LinAlgError):
-            solver.solve(A, b)
+            _ = solver.solve(A, b)
 
     def test_solve_incompatible_dimensions(self):
         """Test that incompatible dimensions raise appropriate error."""
@@ -62,7 +65,7 @@ class TestNumPyLinearSolver:
         b = np.array([1, 2, 3])
 
         with pytest.raises(ValueError):
-            solver.solve(A, b)
+            _ = solver.solve(A, b)
 
 
 class TestSciPyLinearSolver:
@@ -101,7 +104,7 @@ class TestSciPyLinearSolver:
         b = np.array([1, 2])
 
         with pytest.raises(np.linalg.LinAlgError):
-            solver.solve(A, b)
+            _ = solver.solve(A, b)
 
     def test_solve_incompatible_dimensions(self):
         """Test that incompatible dimensions raise appropriate error."""
@@ -112,7 +115,7 @@ class TestSciPyLinearSolver:
         b = np.array([1, 2, 3])
 
         with pytest.raises(ValueError):
-            solver.solve(A, b)
+            _ = solver.solve(A, b)
 
 
 class TestSolverConsistency:

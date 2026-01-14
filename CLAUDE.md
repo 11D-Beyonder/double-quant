@@ -80,7 +80,7 @@ Each commit message follows the Angular' s rule.
 [optional footer]
 ```
 
-Here is an example.
+Here is an example. Each sentence of body should end with '.'.
 
 ```
 feat(lang): add Polish language translation
