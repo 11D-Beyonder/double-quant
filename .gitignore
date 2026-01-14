@@ -15,6 +15,7 @@ __MACOSX/
 __pycache__/
 .pytest_cache/
 .venv/
+uv.lock
 
 # Claude Code
 .claude/
