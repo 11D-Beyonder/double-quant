@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import final
+from enum import Enum
+from typing import Literal, final
 
 import numpy as np
 import scipy as sp
@@ -8,12 +9,12 @@ from qiskit import (
     QuantumRegister,
 )
 from qiskit.circuit.library import (
-    PhaseEstimation,
     StatePreparation,
+    phase_estimation,
 )
 from typing_extensions import override
 
-from double_quant.optimizer import SAPO, LinearSolverOptimizer
+from double_quant.optimizer import LinearSolverOptimizer
 
 
 class LinearSolver(ABC):
@@ -88,26 +89,66 @@ class HhlCircuit(QuantumCircuit):
 
 class QuantumLinearSolver(LinearSolver):
     @final
-    class LinearSystem:
+    class _MethodEnum(Enum):
+        QIKSIT = "qiskit"
+        SAPO = "sapo"
+
+    @final
+    class _LinearSystem:
         def __init__(self, matrix: np.ndarray, vector: np.ndarray) -> None:
             # TODO: check both size
             self.matrix = matrix
-            self.vector = vector
+            vector_norm = np.linalg.norm(vector)
+            self.vector = vector / vector_norm
+            self._scaling = vector_norm
             self._validate_self()
 
         def _validate_self(self):
             # TODO: validate a linear system
             ...
 
-    def __init__(self, optimizer: LinearSolverOptimizer | None = None) -> None:
+        @classmethod
+        def random(
+            cls, n: int, rng: np.random.Generator | None = None
+        ) -> "QuantumLinearSolver._LinearSystem":
+            """
+            Generate a random linear system for HHL algorithm.
+
+            Requirements for HHL:
+            - matrix: Symmetric (for real Hermitian: A = A^T)
+            - vector: Unit vector (||b|| = 1)
+
+            Args:
+                n: Dimension of the linear system (matrix is n×n, vector is n)
+                rng: Optional random number generator for reproducibility
+
+            Returns:
+                A LinearSystem with a random symmetric matrix and unit vector.
+            """
+            if rng is None:
+                rng = np.random.default_rng()
+
+            # Generate random symmetric matrix: S = (A + A^T) / 2
+            A = rng.random((n, n))
+            matrix = (A + A.T) / 2
+
+            # Generate random unit vector
+            b = rng.random(n)
+            vector = b / np.linalg.norm(b)
+
+            return cls(matrix, vector)
+
+    def __init__(
+        self,
+        method: Literal["sapo", "qiskit"] = "qiskit",
+    ) -> None:
         super().__init__()
-        self._optimizer: LinearSolverOptimizer | None = optimizer
         self._hhl_circuit: HhlCircuit | None = None
-        self._linear_system: QuantumLinearSolver.LinearSystem | None = None
+        self._linear_system: QuantumLinearSolver._LinearSystem | None = None
 
     @override
     def solve(self, A: np.ndarray, b: np.ndarray) -> np.ndarray:
-        self._linear_system = self.LinearSystem(A, b)
+        self._linear_system = self._LinearSystem(A, b)
         # TODO: construct circuit and then extract the solution.
         circuit = self._construct_circuit()
 
@@ -115,30 +156,48 @@ class QuantumLinearSolver(LinearSolver):
         assert self._linear_system is not None, (
             "Linear system must be initialized before constructing circuit"
         )
-        assert isinstance(self._optimizer, SAPO)
 
         vector_reg = QuantumRegister(
-            int(np.log2(np.shape(self._linear_system.vector))), name="vector"
+            int(np.log2(np.shape(self._linear_system.vector)[0])), name="vector"
         )
-        phase_reg = QuantumRegister(self._optimizer.qpe_qubit_num, name="phase")
+        phase_reg = QuantumRegister(
+            vector_reg.size + 2
+            if self._optimizer is None
+            else self._optimizer.qpe_qubit_num,
+            name="phase",
+        )
         flag_reg = QuantumRegister(1, name="flag")
 
-        vector_circuit = QuantumCircuit(vector_reg.size, name="vector")
-        vector_circuit.append(StatePreparation(self._linear_system.vector.tolist()))
-
-        matrix_circuit = QuantumCircuit(vector_reg.size, name="U")
-        matrix_circuit.unitary(
-            sp.linalg.expm(
-                1j
-                * self._linear_system.matrix
-                * self._optimizer.hamiltonian_simulation_time
-            ),
-            matrix_circuit.qubits,
+        vector_circuit = QuantumCircuit(vector_reg.size, name="State Preparation")
+        vector_circuit.append(
+            StatePreparation(self._linear_system.vector.tolist()),
+            vector_circuit.qubits,
         )
-        qpe_gate = PhaseEstimation(phase_reg.size, matrix_circuit)
+        matrix_circuit = QuantumCircuit(vector_reg.size, name="U")
+        if self._optimizer is None:
+            # Qiskit evolution time 2π
+            matrix_circuit.unitary(
+                sp.linalg.expm(2j * self._linear_system.matrix * np.pi),
+                matrix_circuit.qubits,
+            )
+        else:
+            matrix_circuit.unitary(
+                sp.linalg.expm(
+                    1j
+                    * self._linear_system.matrix
+                    * self._optimizer.hamiltonian_simulation_time
+                ),
+                matrix_circuit.qubits,
+            )
+
+        qpe_circuit = phase_estimation(phase_reg.size, matrix_circuit)
 
         # control rotation
 
         ans = QuantumCircuit(vector_reg, phase_reg, flag_reg, name="HHL")
         # TODO: assembly circuit
+        ans.append(vector_circuit, vector_reg[:])
+        ans.append(qpe_circuit, phase_reg[:] + vector_reg[:])
+
+        ans.append(qpe_circuit.inverse(), phase_reg[:] + vector_reg[:])
         return ans

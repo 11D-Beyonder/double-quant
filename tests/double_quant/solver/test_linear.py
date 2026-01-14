@@ -2,8 +2,20 @@ import numpy as np
 import pytest
 from double_quant.solver.linear import (
     NumPyLinearSolver,
+    QuantumLinearSolver,
     SciPyLinearSolver,
 )
+import matplotlib.pyplot as plt
+
+
+class TestQuantumLinearSolver:
+    def test_print_circuit(self):
+        solver = QuantumLinearSolver()
+        num_ele = 2**2
+        solver._linear_system = QuantumLinearSolver._LinearSystem.random(num_ele)
+        circuit = solver._construct_circuit()
+        circuit.decompose().draw()
+        plt.show()
 
 
 class TestNumPyLinearSolver:
