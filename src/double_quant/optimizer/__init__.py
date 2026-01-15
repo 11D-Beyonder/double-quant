@@ -1,3 +1,3 @@
-from double_quant.optimizer.linear import SAPO, LinearSolverOptimizer
+from double_quant.optimizer.linear import SAPO
 
-__all__ = ["SAPO", "LinearSolverOptimizer"]
+__all__ = ["SAPO"]
