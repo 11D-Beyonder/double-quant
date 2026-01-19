@@ -97,13 +97,7 @@ class LinearSystem:
 
     @property
     def solution_scaling(self):
-        """
-        Get the scaling factor to convert quantum solution to original scale.
-
-        The quantum algorithm computes a solution for the scaled system.
-        Multiply the quantum result by this factor to get the solution for
-        the original unscaled system.
-        """
+        """Get the scaling factor to convert solution to original scale."""
         return self._matrix_init_scaling / self._vector_init_scaling
 
     @property
