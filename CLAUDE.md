@@ -12,8 +12,21 @@ Double Quant is a quantum quantitative finance project that aims to apply quantu
 double-quant/
 ├── src/
 │   └── double_quant/           # Main Python package directory
-│       ├── __init__.py         # Package initialization, contains hello() function
-│       └── py.typed            # Indicates this is a typed package (enables type checking)
+│       ├── common/             # Common data structures and utilities
+│       │   ├── model.py        # LinearSystem class for representing linear systems
+│       │   ├── metric.py       # Similarity metrics (cosine similarity)
+│       │   └── __init__.py     # Exports LinearSystem and cos_similarity
+│       ├── optimizer/          # Optimization algorithms for quantum solvers
+│       │   ├── sapo.py         # SAPO optimizer for HHL algorithm
+│       │   └── __init__.py     # Exports SAPO and EigenPredictor
+│       ├── solver/             # Quantum linear system solvers
+│       │   ├── linear.py       # QuantumLinearSolver with HHL implementation
+│       │   └── __init__.py     # Exports QuantumLinearSolver
+│       └── py.typed            # Indicates this is a typed package
+├── tests/                      # Test suite
+│   └── double_quant/
+│       └── solver/
+│           └── test_linear.py  # Tests for quantum linear solver
 ├── pyproject.toml              # Modern Python project configuration
 ├── README.md                   # Basic project documentation
 ├── CLAUDE.md                   # Development guidance for Claude Code
@@ -24,7 +37,7 @@ double-quant/
 
 - **`src/` layout**: Uses `src/` directory layout, a modern Python packaging best practice
 - **Typed package**: The `py.typed` file enables static type checking tools like mypy
-- **Minimal implementation**: Currently only contains a basic `hello()` function for testing
+- **Modular design**: Organized into common, optimizer, and solver modules
 
 ## Development Environment
 

@@ -1,3 +1,7 @@
-from .linear import LinearSolver
+"""Linear system solvers."""
 
-__all__ = ["LinearSolver"]
+from double_quant.solver.linear import QuantumLinearSolver
+
+__all__ = [
+    "QuantumLinearSolver",
+]

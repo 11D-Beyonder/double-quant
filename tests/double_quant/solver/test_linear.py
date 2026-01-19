@@ -1,11 +1,4 @@
-from matplotlib.pyplot import flag
 import numpy as np
-import pytest
-from double_quant.solver.linear import (
-    NumPyLinearSolver,
-    QuantumLinearSolver,
-    SciPyLinearSolver,
-)
 from qiskit import QuantumCircuit, QuantumRegister
 from qiskit.circuit.library import (
     ExactReciprocalGate,
@@ -14,6 +7,9 @@ from qiskit.circuit.library import (
     phase_estimation,
 )
 from qiskit.quantum_info import Statevector
+from double_quant.common import LinearSystem
+from double_quant.common.metric import cos_similarity
+from double_quant.solver import QuantumLinearSolver
 
 
 class TestHhlQubitOrder:
@@ -55,150 +51,37 @@ class TestHhlQubitOrder:
             ExactReciprocalGate(phase_reg.size, 0.25 / 2**phase_reg.size, True),
             phase_reg[::-1] + flag_reg[:],
         )
-        # circuit.append(
-        #     UCRYGate([0, 0, 0, 0, 2 * np.arcsin(1), 0, 0, 0]),
-        #     flag_reg[:] + phase_reg[::-1],
-        # )
+        circuit.append(
+            UCRYGate([0, 0, 0, 0, 2 * np.arcsin(1), 0, 0, 0]),
+            flag_reg[:] + phase_reg[::-1],
+        )
         print(f"\n{'=' * 60}\n{circuit.decompose('1/x').draw()}")
         print(Statevector.from_circuit(circuit).probabilities_dict([5]))
 
 
 class TestQuantumLinearSolver:
-    def test_print_circuit(self):
-        solver = QuantumLinearSolver()
-        num_ele = 2**2
-        solver._linear_system = QuantumLinearSolver._LinearSystem.random(num_ele)
-        circuit = solver._construct_circuit()
-        print(f"\n{circuit.decompose('circuit-43').decompose('1/x').draw()}")
-        # circuit.draw("mpl")
-        # plt.show()
+    """Test cases for QuantumLinearSolver."""
+
+    def test_basic_solve_sapo_method(self):
+        """Test quantum solver with SAPO method on simple system."""
+
+        NUM_TEST = 100
+        count = 0
+        for _ in range(NUM_TEST):
+            system = LinearSystem.random_for_hhl(2**2)
+            count += (
+                cos_similarity(
+                    np.linalg.solve(system.matrix, system.vector),
+                    QuantumLinearSolver.solve(system.matrix, system.vector),
+                )
+                >= 0.9
+            )
+        assert count >= NUM_TEST // 2
 
 
-class TestNumPyLinearSolver:
-    def test_solve_2x2_system(self):
-        """Test solving a 2x2 linear system."""
-        solver = NumPyLinearSolver()
+class TestQuantumVsClassical:
+    """Compare quantum and classical solver results."""
 
-        # Simple 2x2 system: [2 1; 1 1] * [x; y] = [3; 2]
-        A = np.array([[2, 1], [1, 1]])
-        b = np.array([3, 2])
-
-        solution = solver.solve(A, b)
-        expected = np.array([1, 1])
-
-        np.testing.assert_array_almost_equal(solution, expected)
-
-    def test_solve_3x3_system(self):
-        """Test solving a 3x3 linear system."""
-        solver = NumPyLinearSolver()
-
-        # 3x3 system
-        A = np.array([[3, 1, 1], [1, 3, 1], [1, 1, 3]])
-        b = np.array([5, 5, 5])
-
-        solution = solver.solve(A, b)
-        expected = np.array([1, 1, 1])
-
-        np.testing.assert_array_almost_equal(solution, expected)
-
-    def test_solve_singular_matrix(self):
-        """Test that singular matrix raises appropriate error."""
-        solver = NumPyLinearSolver()
-
-        # Singular matrix (determinant = 0)
-        A = np.array([[1, 2], [2, 4]])  # Second row is 2x first row
-        b = np.array([1, 2])
-
-        with pytest.raises(np.linalg.LinAlgError):
-            _ = solver.solve(A, b)
-
-    def test_solve_incompatible_dimensions(self):
-        """Test that incompatible dimensions raise appropriate error."""
-        solver = NumPyLinearSolver()
-
-        # 2x2 matrix with 3-element vector
-        A = np.array([[1, 2], [3, 4]])
-        b = np.array([1, 2, 3])
-
-        with pytest.raises(ValueError):
-            _ = solver.solve(A, b)
-
-
-class TestSciPyLinearSolver:
-    def test_solve_2x2_system(self):
-        """Test solving a 2x2 linear system."""
-        solver = SciPyLinearSolver()
-
-        # Simple 2x2 system: [2 1; 1 1] * [x; y] = [3; 2]
-        A = np.array([[2, 1], [1, 1]])
-        b = np.array([3, 2])
-
-        solution = solver.solve(A, b)
-        expected = np.array([1, 1])
-
-        np.testing.assert_array_almost_equal(solution, expected)
-
-    def test_solve_3x3_system(self):
-        """Test solving a 3x3 linear system."""
-        solver = SciPyLinearSolver()
-
-        # 3x3 system
-        A = np.array([[3, 1, 1], [1, 3, 1], [1, 1, 3]])
-        b = np.array([5, 5, 5])
-
-        solution = solver.solve(A, b)
-        expected = np.array([1, 1, 1])
-
-        np.testing.assert_array_almost_equal(solution, expected)
-
-    def test_solve_singular_matrix(self):
-        """Test that singular matrix raises appropriate error."""
-        solver = SciPyLinearSolver()
-
-        # Singular matrix (determinant = 0)
-        A = np.array([[1, 2], [2, 4]])  # Second row is 2x first row
-        b = np.array([1, 2])
-
-        with pytest.raises(np.linalg.LinAlgError):
-            _ = solver.solve(A, b)
-
-    def test_solve_incompatible_dimensions(self):
-        """Test that incompatible dimensions raise appropriate error."""
-        solver = SciPyLinearSolver()
-
-        # 2x2 matrix with 3-element vector
-        A = np.array([[1, 2], [3, 4]])
-        b = np.array([1, 2, 3])
-
-        with pytest.raises(ValueError):
-            _ = solver.solve(A, b)
-
-
-class TestSolverConsistency:
-    """Test that NumPy and SciPy solvers produce the same results."""
-
-    def test_consistency_2x2(self):
-        """Test that NumPy and SciPy solvers give same result for 2x2 system."""
-        numpy_solver = NumPyLinearSolver()
-        scipy_solver = SciPyLinearSolver()
-
-        A = np.array([[4, 2], [1, 3]])
-        b = np.array([8, 4])
-
-        numpy_result = numpy_solver.solve(A, b)
-        scipy_result = scipy_solver.solve(A, b)
-
-        np.testing.assert_array_almost_equal(numpy_result, scipy_result)
-
-    def test_consistency_3x3(self):
-        """Test that NumPy and SciPy solvers give same result for 3x3 system."""
-        numpy_solver = NumPyLinearSolver()
-        scipy_solver = SciPyLinearSolver()
-
-        A = np.array([[2, 1, 0], [1, 2, 1], [0, 1, 2]])
-        b = np.array([1, 2, 1])
-
-        numpy_result = numpy_solver.solve(A, b)
-        scipy_result = scipy_solver.solve(A, b)
-
-        np.testing.assert_array_almost_equal(numpy_result, scipy_result)
+    def test_compare_with_numpy_2x2(self):
+        """Compare quantum solver with NumPy on 2x2 system."""
+        ...

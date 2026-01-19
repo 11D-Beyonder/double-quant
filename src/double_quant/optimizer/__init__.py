@@ -1,3 +1,6 @@
-from double_quant.optimizer.linear import SAPO
+"""Optimizers for quantum algorithms."""
 
-__all__ = ["SAPO"]
+from double_quant.optimizer.sapo import EigenPredictor, SAPO
+
+__all__ = ["SAPO", "EigenPredictor"]
+
