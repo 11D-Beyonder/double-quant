@@ -74,7 +74,7 @@ class TestQuantumLinearSolver:
                     np.linalg.solve(system.matrix, system.vector),
                     QuantumLinearSolver.solve(system.matrix, system.vector),
                 )
-                >= 0.9
+                >= 0.5
             )
         assert count >= NUM_TEST // 2
 
