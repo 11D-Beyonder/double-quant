@@ -1,10 +1,10 @@
 ![](docs/assets/logo.png)
 
 <div align="center">
-<h2>
-<strong style="color: red">Quant</strong>um
-<strong style="color: green">Quant</strong>itative
-</h2>
+<h1>
+<em>Quant</em>um  
+<em>Quant</em>itative
+</h1>
 </div>
 <br>
 
