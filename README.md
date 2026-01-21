@@ -2,8 +2,8 @@
 
 <div align="center">
 <h2>
-<strong>Quant</strong>um
-<strong>Quant</strong>itative
+<strong style="color: red">Quant</strong>um
+<strong style="color: green">Quant</strong>itative
 </h2>
 </div>
 <br>
@@ -130,8 +130,6 @@ solver = QuantumLinearSolver(optimizer=optimizer)
 solution = solver.solve(system)
 ```
 
----
-
 ## 🔬 Core Components
 
 ### Quantum Linear Solver
@@ -190,9 +188,7 @@ We follow the Angular commit message convention:
 
 ## 📄 License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
-
----
+This project is licensed under the GPLv3 - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
@@ -204,7 +200,6 @@ This project draws inspiration from:
 ## 🗺️ Roadmap
 
 - [x] Core linear system solver with HHL algorithm
-- [x] SAPO optimizer implementation
 - [ ] Portfolio optimization applications
 - [ ] Option pricing modules
 - [ ] Risk analysis tools
