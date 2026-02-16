@@ -6,16 +6,7 @@ from qiskit.quantum_info import Statevector
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit_aer.backends import AerSimulator
 from scipy import special
-
-
-def normalize(x: np.ndarray, denominator="max"):
-    if denominator == "max":
-        denominator = np.max(x)
-        if denominator == 0:
-            return x, 0.0
-        return x / denominator, denominator
-    else:
-        raise NotImplementedError
+from double_quant.common.util import normalize
 
 
 class ControlledBlueprintCircuit(BlueprintCircuit):
@@ -382,3 +373,24 @@ class QuantumCalculator(ShapleyCalculator):
             )[1]
             * max_contribution
         )
+
+
+f"""
+QuantumCalculator
+
+n+1
+
+A, B, C, D
+
+0000 a[0]
+A 0001 a[1]
+B 0010 a[2]
+AB 0011 a[3]
+
+50% A 50%B AB
+
+[A,B,C,D,...]
+
+输入：2^(n+1) 维的向量 [000,01,010,...,2^(n+1)-1]
+输出：第i个标的的夏普利值 get_one(i)
+"""

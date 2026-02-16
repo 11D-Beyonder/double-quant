@@ -1,4 +1,5 @@
 import scipy as sp
+import numpy as np
 
 
 def cos_similarity(x, y):
@@ -65,3 +66,35 @@ def cos_similarity(x, y):
           the quantum solution closely matches the expected result
     """
     return 1 - sp.spatial.distance.cosine(x, y)
+
+
+def annualized_volatility(returns: np.ndarray) -> float:
+    """
+    Calculate annualized volatility of returns.
+
+    Args:
+        returns: Array-like of asset returns.
+
+    Returns:
+        float: Annualized volatility.
+    """
+    return np.std(returns) * np.sqrt(252)
+
+
+def expected_shortfall(returns: np.ndarray, alpha: float = 0.95) -> float:
+    """
+    Calculate Expected Shortfall (ES) at a given confidence level.
+
+    ES is the average loss given that the loss exceeds the Value at Risk (VaR).
+    This implementation uses the historical simulation method.
+
+    Args:
+        returns: Array-like of asset returns.
+        alpha: Confidence level (default 0.95).
+
+    Returns:
+        float: Expected Shortfall value (positive for loss).
+    """
+    losses = -np.array(returns)
+    var = np.quantile(losses, alpha)
+    return float(np.mean(losses[losses >= var]))
