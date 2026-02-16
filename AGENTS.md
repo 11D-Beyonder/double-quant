@@ -16,7 +16,7 @@
 The project follows a three-layer architecture:
 1.  **Application Layer** (`src/double_quant/application`): High-level financial logic (e.g., Portfolio optimization).
 2.  **Solver Layer** (`src/double_quant/solver`): Quantum algorithms (e.g., `QuantumLinearSolver`, `HHL`).
-3.  **Data Layer** (`src/double_quant/common`, `src/double_quant/data`): Core data structures (e.g., `LinearSystem`) and utilities.
+3.  **Data Layer** (`src/double_quant/data`): Core data structures (e.g., `LinearSystem`) and utilities.
 
 ## Setup & Usage
 

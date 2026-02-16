@@ -11,6 +11,7 @@ dependencies = [
     "qiskit>=2.2.3",
     "qiskit-aer>=0.17.2",
     "scipy-stubs[scipy]>=1.16.3.0",
+    "yfinance>=1.1.0",
 ]
 
 
@@ -22,7 +23,10 @@ build-backend = "hatchling.build"
 packages = ["src/double_quant"]
 
 [dependency-groups]
-dev = ["pytest>=8.4.2"]
+dev = [
+    "pytest>=8.4.2",
+    "seaborn>=0.13.2",
+]
 
 [tool.pyright]
 typeCheckingMode = "basic"
