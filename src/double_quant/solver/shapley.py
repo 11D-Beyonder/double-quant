@@ -375,7 +375,7 @@ class QuantumCalculator(ShapleyCalculator):
         )
 
 
-f"""
+"""
 QuantumCalculator
 
 n+1
