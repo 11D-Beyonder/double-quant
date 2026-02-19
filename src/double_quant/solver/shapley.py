@@ -6,7 +6,20 @@ from qiskit.quantum_info import Statevector
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit_aer.backends import AerSimulator
 from scipy import special
+from typing import Protocol
+
 from double_quant.common.util import normalize
+
+
+class ValueFunction(Protocol):
+    """Protocol for characteristic value functions used in Shapley calculations.
+
+    Any object implementing ``__getitem__(bitmask: int) -> float`` satisfies
+    this protocol, including plain ``dict[int, int | float]`` instances and
+    custom callable value-function classes.
+    """
+
+    def __getitem__(self, bitmask: int) -> float: ...
 
 
 class ControlledBlueprintCircuit(BlueprintCircuit):
@@ -202,12 +215,12 @@ if __name__ == "__main__":
 class ShapleyCalculator:
     """计算 Shapley 值的基类 只需要实现 _calculate_one 方法，该方法计算给定 player 的 Shapley 值。"""
 
-    def __init__(self, num_players: int, value_dict: dict[int, int] | None = None):
+    def __init__(self, num_players: int, value_dict: ValueFunction | None = None):
         """初始化 Shapley 计算器。
 
         Args:
             num_players (int): 玩家数。
-            value_dict (dict[int, int], optional): 子集收益值字典，为 None 时随机生成。
+            value_dict (ValueFunction, optional): 子集收益值字典，为 None 时随机生成。
         """
         self.num_players = num_players
 
@@ -234,7 +247,7 @@ class ShapleyCalculator:
 
 
 class BinaryEnumerationCalculator(ShapleyCalculator):
-    def __init__(self, num_players: int, value_dict: dict[int, int] | None = None):
+    def __init__(self, num_players: int, value_dict: ValueFunction | None = None):
         super().__init__(num_players, value_dict)
         self.__factorial = [1] * (num_players + 1)
         for i in range(1, num_players + 1):
@@ -262,7 +275,7 @@ class BinaryEnumerationCalculator(ShapleyCalculator):
 
 
 class PermutationEnumerationCalculator(ShapleyCalculator):
-    def __init__(self, num_players: int, value_dict: dict[int, int] | None = None):
+    def __init__(self, num_players: int, value_dict: ValueFunction | None = None):
         super().__init__(num_players, value_dict)
         self.__weight = special.factorial(self.num_players, exact=True)
 
@@ -288,7 +301,7 @@ class QuantumCalculator(ShapleyCalculator):
     def __init__(
         self,
         num_players: int,
-        value_dict: dict[int, int] | None = None,
+        value_dict: ValueFunction | None = None,
         internal_qubits_num: int | None = None,
         internal_multiplier: float = 2,
     ):
