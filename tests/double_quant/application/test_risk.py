@@ -1,11 +1,13 @@
 import os
-import pandas as pd
 import numpy as np
-import yfinance as yf
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from double_quant.common.util import divide_by_volatility
+from double_quant.application.risk import RiskAttributor, RiskSavingValueFunction
+from double_quant.solver.shapley import BinaryEnumerationCalculator
 from double_quant.common.metric import annualized_volatility
+from double_quant.common.util import divide_by_volatility
+from double_quant.data.time_series import from_yfinance
 
 # ==========================================
 # 1. Data Preparation Logic
@@ -160,47 +162,8 @@ class DataPreparation:
         return list(set(high_vol + mid_vol + low_vol))
 
     def download(self, start="2020-04-01", end="2022-04-01", use_cache=True):
-        if use_cache:
-            if os.path.exists(self.file_path):
-                print(f"Loading data from {self.file_path}")
-                try:
-                    df = pd.read_csv(self.file_path, index_col=0, parse_dates=True)
-                    if not df.empty:
-                        return df
-                except Exception as e:
-                    print(f"Error reading existing file: {e}. Re-downloading.")
-
-        tickers = self.get_tickers()
-        print(f"Downloading data for {len(tickers)} tickers from {start} to {end}...")
-
-        # Download Adjusted Close prices
-        # Use auto_adjust=False and threads=True
-        data = yf.download(tickers, start=start, end=end, auto_adjust=False)
-
-        assert data is not None
-        if isinstance(data.columns, pd.MultiIndex):
-            # If MultiIndex (e.g. ('Adj Close', 'AAPL')), get just 'Adj Close'
-            if "Adj Close" in data.columns.levels[0]:
-                data = data["Adj Close"]
-            elif "Close" in data.columns.levels[0]:
-                data = data["Close"]  # Fallback
-
-        # Drop columns with too many NaNs (e.g. recent IPOs not in range)
-        # Strict threshold to 95% to ensure full history from 2020
-        original_cols = len(data.columns)
-
-        assert isinstance(data, pd.DataFrame)
-        data = data.dropna(axis=1, thresh=int(0.95 * len(data)))
-        print(
-            f"Dropped {original_cols - len(data.columns)} columns due to missing data."
-        )
-
-        # Forward fill remaining NaNs
-        data = data.ffill().dropna()
-
-        print(f"Saving data to {self.file_path}")
-        data.to_csv(self.file_path)
-        return data
+        cache_path = self.file_path if use_cache else None
+        return from_yfinance(self.get_tickers(), start, end, cache_path=cache_path)
 
 
 # ==========================================
@@ -339,74 +302,195 @@ def test_volatility_bucketing():
 
     # Generate Composite Figure
     # Set seaborn theme for better aesthetics
-    sns.set_theme(style="whitegrid", context="paper", font_scale=1.5, rc={"font.family": "Times New Roman"})
-    
+    sns.set_theme(
+        style="whitegrid",
+        context="paper",
+        font_scale=2.0,  # Increased font scale for larger axis labels
+        rc={"font.family": "Times New Roman"},
+    )
+
     # Define a consistent color palette
     palette = {
-        "Low Volatility": "#2ecc71",  # Emerald Green
-        "Mid Volatility": "#3498db",  # Peter River Blue
-        "High Volatility": "#e74c3c"  # Alizarin Red
+        "Low Volatility": "#4daf4a",  # Muted Green
+        "Mid Volatility": "#377eb8",  # Muted Blue
+        "High Volatility": "#ff7f00",  # Muted Orange
     }
-
-    fig, (ax1, ax2) = plt.subplots(
-        2, 1, figsize=(14, 8), sharex=True, gridspec_kw={"height_ratios": [1, 1]}
+    _, (ax1, ax2) = plt.subplots(
+        2,
+        1,
+        figsize=(11, 6),
+        sharex=True,
+        gridspec_kw={"height_ratios": [1, 1]},  # Made figure flatter
     )
 
     # Plot Panel A: Cumulative Wealth
     for label in bucket_labels:
         series = series_data[label]["cum_ret"]
         sns.lineplot(
-            x=series.index, 
-            y=series.values, 
-            label=label, 
-            color=palette[label], 
-            linewidth=2, 
-            ax=ax1
+            x=series.index,
+            y=series.values,
+            color=palette[label],
+            linewidth=2,
+            ax=ax1,
         )
 
-    ax1.set_title(
-        "Panel A: Cumulative Wealth Index (Normalized to 1.0)",
-        fontsize=14,
-        fontweight="bold",
-        pad=15
-    )
-    ax1.set_ylabel("Wealth Index")
-    ax1.legend(title="Risk Bucket", loc="upper left")
     ax1.grid(True, linestyle="--", alpha=0.6)
+    # Hide x-axis tick labels for the upper subplot when sharing x-axis
+    ax1.tick_params(labelbottom=False)
 
     # Plot Panel B: Rolling Volatility
     for label in bucket_labels:
         series = series_data[label]["rolling_vol"]
         sns.lineplot(
-            x=series.index, 
-            y=series.values, 
-            label=label, 
-            color=palette[label], 
-            linewidth=2, 
-            ax=ax2
+            x=series.index,
+            y=series.values,
+            color=palette[label],
+            linewidth=2,
+            ax=ax2,
         )
 
-    ax2.set_title(
-        "Panel B: 30-Day Rolling Annualized Volatility", 
-        fontsize=14, 
-        fontweight="bold",
-        pad=15
-    )
-    ax2.set_ylabel("Volatility (Ann.)")
-    ax2.set_xlabel("Date")
-    ax2.legend(title="Risk Bucket", loc="upper left")
     ax2.grid(True, linestyle="--", alpha=0.6)
 
-    plt.tight_layout()
-    
-    # Save as both SVG and PNG
+    # Get date range from the returns DataFrame for shading
+    start_date = returns.index.min()
+    end_date = returns.index.max()
+    demarcation_date = pd.Timestamp("2021-11-01")
+
+    # Add shaded regions for "Liquidity Bull Market"
+    ax1.axvspan(start_date, demarcation_date, color="lightgreen", alpha=0.1, zorder=0)
+    ax2.axvspan(start_date, demarcation_date, color="lightgreen", alpha=0.1, zorder=0)
+
+    # Add shaded regions for "Interest Rate Cut Cycle"
+    ax1.axvspan(demarcation_date, end_date, color="lightcoral", alpha=0.1, zorder=0)
+    ax2.axvspan(demarcation_date, end_date, color="lightcoral", alpha=0.1, zorder=0)
+
+    # Add vertical line
+    ax1.axvline(demarcation_date, color="gray", linestyle="--", linewidth=1.5, zorder=1)
+    ax2.axvline(demarcation_date, color="gray", linestyle="--", linewidth=1.5, zorder=1)
+
+    # Set x-axis limits to remove empty space
+    ax1.set_xlim(start_date, end_date)
+    ax2.set_xlim(start_date, end_date)
+
+    plt.tight_layout(h_pad=1.2)
     output_path_svg = os.path.join(output_dir, "vol_buckets_trend.svg")
-    output_path_png = os.path.join(output_dir, "vol_buckets_trend.png")
-    
-    plt.savefig(output_path_svg, dpi=300, bbox_inches="tight")
-    plt.savefig(output_path_png, dpi=300, bbox_inches="tight")
-    
-    # Clear the plot to avoid interference with other tests if any
-    plt.clf() 
-    
-    print(f"Saved composite figure to: {output_path_svg} and {output_path_png}")
+    plt.savefig(output_path_svg)
+    plt.show()
+
+
+class TestRiskSaving:
+    def _indices_to_mask(self, indices: list[int]) -> int:
+        return sum(1 << i for i in indices)
+
+    def test_superadditivity(self):
+        """
+        Verify that the Risk Saving (RS) characteristic function is
+        superadditive: RS(S ∪ T) ≥ RS(S) + RS(T) for disjoint S, T.
+
+        This is the precondition that makes RS compatible with the quantum Shapley algorithm.
+        Runs 5000 random trials on the full asset universe.
+        """
+        N_TRIALS = 5000
+        FLOAT_TOL = 1e-9
+
+        dp = DataPreparation()
+        prices = dp.download()
+        returns = np.log(prices / prices.shift(1)).dropna()
+
+        vfunc = RiskSavingValueFunction(returns)
+        n_assets = vfunc.num_assets
+
+        rng = np.random.default_rng(seed=42)
+
+        synergy_all: list[float] = []
+
+        violations = 0
+        for _ in range(N_TRIALS):
+            s = int(rng.integers(2, 9))
+            t = int(rng.integers(2, 9))
+            indices = rng.choice(n_assets, size=s + t, replace=False).tolist()
+            idx_s, idx_t = indices[:s], indices[s:]
+
+            mask_s = self._indices_to_mask(idx_s)
+            mask_t = self._indices_to_mask(idx_t)
+            mask_st = mask_s | mask_t
+
+            synergy = vfunc[mask_st] - (vfunc[mask_s] + vfunc[mask_t])
+            synergy_all.append(synergy)
+
+            if synergy < -FLOAT_TOL:
+                violations += 1
+
+        synergy_arr = np.array(synergy_all)
+
+        print("\n" + "=" * 60)
+        print(f"Superadditivity Verification (N={N_TRIALS} random disjoint pairs)")
+        print("=" * 60)
+        print(f"  Violations (synergy < -{FLOAT_TOL}): {violations}")
+        print(
+            f"  All pairs  — min: {synergy_arr.min():.6f}  mean: {synergy_arr.mean():.6f}  max: {synergy_arr.max():.6f}"
+        )
+        print("=" * 60 + "\n")
+
+        assert violations == 0, (
+            f"Superadditivity violated in {violations}/{N_TRIALS} trials. "
+            f"Min synergy = {synergy_arr.min():.9f}"
+        )
+
+    def test_restoration_accuracy(self):
+        """
+        Verify that the restoration formula SRC_i = ES({i}) - Φ_i^RS
+        is numerically lossless compared to the direct path SRC_i = Φ_i^ES.
+
+        Both paths use BinaryEnumerationCalculator on the same 5-asset portfolio.
+        MAE should be near machine floating-point epsilon, confirming the RS ↔ ES
+        duality introduced for quantum-compatibility introduces zero algorithmic error.
+        """
+        MAE_TOL = 1e-9
+
+        dp = DataPreparation()
+        prices = dp.download()
+        returns = np.log(prices / prices.shift(1)).dropna()
+
+        # Sample 5 assets: 2 High, 2 Mid, 1 Low — heterogeneous covariance structure
+        buckets = divide_by_volatility(returns, [0.3, 0.7])
+        low_assets, mid_assets, high_assets = buckets[0], buckets[1], buckets[2]
+
+        rng = np.random.default_rng(seed=0)
+        assets_5 = (
+            rng.choice(high_assets, size=2, replace=False).tolist()
+            + rng.choice(mid_assets, size=2, replace=False).tolist()
+            + rng.choice(low_assets, size=1, replace=False).tolist()
+        )
+        returns_5 = returns[assets_5]
+
+        # Path A: direct Shapley of ES  →  SRC_i = Φ_i^ES
+        src_es = RiskAttributor(
+            returns_5, BinaryEnumerationCalculator, mode="es"
+        ).attribute()
+
+        # Path B: Shapley of RS then restore  →  SRC_i = ES({i}) - Φ_i^RS
+        src_rs = RiskAttributor(
+            returns_5, BinaryEnumerationCalculator, mode="rs"
+        ).attribute()
+
+        diffs = {a: abs(src_rs[a] - src_es[a]) for a in assets_5}
+        mae = float(np.mean(list(diffs.values())))
+
+        print("\n" + "=" * 70)
+        print("Restoration Formula Accuracy  (mode='es' vs mode='rs'  |  n=5 assets)")
+        print("=" * 70)
+        print(f"  {'Asset':<10} {'SRC via ES':>14} {'SRC via RS':>14} {'|diff|':>14}")
+        print("  " + "-" * 56)
+        for a in assets_5:
+            print(
+                f"  {a:<10} {src_es[a]:>14.10f} {src_rs[a]:>14.10f} {diffs[a]:>14.2e}"
+            )
+        print("  " + "-" * 56)
+        print(f"  {'MAE':<10} {mae:>43.2e}")
+        print("=" * 70 + "\n")
+
+        assert mae < MAE_TOL, (
+            f"Restoration formula MAE = {mae:.2e} exceeds tolerance {MAE_TOL:.2e}. "
+            f"Max single-asset diff = {max(diffs.values()):.2e} on asset '{max(diffs, key=diffs.get)}'"
+        )
