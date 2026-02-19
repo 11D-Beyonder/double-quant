@@ -18,6 +18,8 @@ The project follows a three-layer architecture:
 2.  **Solver Layer** (`src/double_quant/solver`): Quantum algorithms (e.g., `QuantumLinearSolver`, `HHL`).
 3.  **Data Layer** (`src/double_quant/data`): Core data structures (e.g., `LinearSystem`) and utilities.
 
+The mathematical theory behind each module's implementation is documented in `docs/` (e.g., `docs/application/risk.md`, `docs/solver/shapley.md`); consult these before modifying or extending any module.
+
 ## Setup & Usage
 
 ### Prerequisites
