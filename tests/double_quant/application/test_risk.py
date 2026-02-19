@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from matplotlib.patches import FancyBboxPatch
 from double_quant.application.risk import RiskAttributor, RiskSavingValueFunction
 from double_quant.solver.shapley import BinaryEnumerationCalculator
 from double_quant.common.metric import annualized_volatility
@@ -378,6 +379,33 @@ def test_volatility_bucketing():
     plt.show()
 
 
+# Helper function for rounded horizontal bars
+def create_rounded_barh(ax, y_data, x_data, colors, height=0.6, rounding_size=0.1):
+    for i, (y_val, x_val, color) in enumerate(zip(y_data, x_data, colors)):
+        # Create a FancyBboxPatch for each bar
+        # x-coordinate starts from 0 (left edge of the bar)
+        # y-coordinate is centered around the index i
+        # width is the x_val
+        # height is the bar thickness
+        fancy_bbox_patch = FancyBboxPatch(
+            (0, i - height / 2),
+            x_val,
+            height,
+            boxstyle=f"round,pad=0,rounding_size={rounding_size}",
+            fc=color,
+            ec="none",  # No edge color for a cleaner look
+            lw=0,
+            alpha=1,
+            zorder=2,  # Ensure bars are on top
+        )
+        ax.add_patch(fancy_bbox_patch)
+
+    # Set y-axis limits and ticks
+    ax.set_ylim(-0.5, len(y_data) - 0.5)
+    ax.set_yticks(range(len(y_data)))
+    ax.set_yticklabels(y_data)
+
+
 class TestRiskSaving:
     def _indices_to_mask(self, indices: list[int]) -> int:
         return sum(1 << i for i in indices)
@@ -489,6 +517,106 @@ class TestRiskSaving:
         print("  " + "-" * 56)
         print(f"  {'MAE':<10} {mae:>43.2e}")
         print("=" * 70 + "\n")
+
+        # ── Visualisation: per-asset |diff| + MAE horizontal bar chart ──────
+        bucket_map: dict[str, str] = (
+            {a: "High" for a in high_assets}
+            | {a: "Mid" for a in mid_assets}
+            | {a: "Low" for a in low_assets}
+        )
+        palette_bar = {
+            "High": "#c8906a",  # muted amber
+            "Mid": "#7aa3c4",  # muted steel-blue
+            "Low": "#82ae80",  # muted sage-green
+            "MAE": "#9e9e9e",  # neutral grey
+        }
+
+        # ascending sort → worst asset ends up at the top of the chart
+        sorted_assets = sorted(assets_5, key=lambda a: diffs[a])
+        bar_labels = ["MAE"] + sorted_assets
+        bar_values = [mae] + [diffs[a] for a in sorted_assets]
+        bar_colors = [palette_bar["MAE"]] + [
+            palette_bar[bucket_map[a]] for a in sorted_assets
+        ]
+
+        sns.set_theme(
+            style="ticks",
+            context="paper",
+            font_scale=1.7,
+            rc={
+                "font.family": "Times New Roman",
+                "mathtext.fontset": "stix",  # Times-compatible math font
+            },
+        )
+
+        fig, ax = plt.subplots(figsize=(7, 4.2))
+        fig.patch.set_facecolor("white")
+        ax.set_facecolor("#f6f6f6")
+
+        # Regular barh — no rounded corners
+        ax.barh(
+            range(len(bar_labels)),
+            bar_values,
+            color=bar_colors,
+            height=0.55,
+            zorder=2,
+        )
+        ax.set_yticks(range(len(bar_labels)))
+        ax.set_yticklabels(bar_labels, fontsize=12)
+        ax.set_ylim(-0.5, len(bar_labels) - 0.5)
+
+        # Scale tick labels to plain numbers; put ×10^{exp} in the xlabel
+        _max = max(bar_values)
+        _exp = int(np.floor(np.log10(_max)))
+        ax.xaxis.set_major_formatter(
+            plt.FuncFormatter(lambda x, _, e=_exp: f"{x * 10 ** (-e):.1f}")
+        )
+        # ax.set_xlabel(
+        #     r"$|\,\Phi^{\mathrm{ES}}_i - \mathrm{SRC}^{\mathrm{RS}}_i\,|$"
+        #     + f"$\\;(\\times 10^{{{_exp}}})$",
+        #     labelpad=8,
+        # )
+        # ax.set_title(
+        #     "Restoration Formula Accuracy  —  RS \u2194 ES Duality",
+        #     pad=10, fontweight="normal",
+        # )
+        ax.tick_params(axis="y", length=0, labelsize=12)
+        ax.tick_params(axis="x", labelsize=12)
+        ax.xaxis.grid(True, linestyle="--", linewidth=0.6, alpha=0.5, zorder=0)
+        ax.set_axisbelow(True)
+        ax.set_xlim(0, _max * 1.45)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+        # Value labels at the end of each bar: e.g. $1.39 \times 10^{-17}$
+        for i, v in enumerate(bar_values):
+            _v_exp = int(np.floor(np.log10(v))) if v > 0 else 0
+            _v_mant = v / 10**_v_exp
+            label = rf"${_v_mant:.2f} \times 10^{{{_v_exp}}}$"
+            ax.text(
+                v + _max * 0.02,
+                i,
+                label,
+                va="center",
+                ha="left",
+                fontsize=12,
+                color="#333333",
+            )
+
+        # from matplotlib.patches import Patch
+        # ax.legend(
+        #     handles=[
+        #         Patch(facecolor=palette_bar["High"], label="High Vol."),
+        #         Patch(facecolor=palette_bar["Mid"],  label="Mid Vol."),
+        #         Patch(facecolor=palette_bar["Low"],  label="Low Vol."),
+        #         Patch(facecolor=palette_bar["MAE"],  label="MAE"),
+        #     ],
+        #     loc="lower right", framealpha=0.8, fontsize=9, handlelength=1.2,
+        # )
+
+        plt.tight_layout()
+        plt.show()
+        # ── End Visualisation ─────────────────────────────────────────────────
 
         assert mae < MAE_TOL, (
             f"Restoration formula MAE = {mae:.2e} exceeds tolerance {MAE_TOL:.2e}. "
