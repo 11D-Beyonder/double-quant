@@ -10,10 +10,6 @@ from double_quant.common.metric import annualized_volatility
 from double_quant.common.util import divide_by_volatility
 from double_quant.data.time_series import from_yfinance
 
-# ==========================================
-# 1. Data Preparation Logic
-# ==========================================
-
 
 class DataPreparation:
     def __init__(self, data_dir="tests/double_quant/application/data"):
@@ -165,11 +161,6 @@ class DataPreparation:
     def download(self, start="2020-04-01", end="2022-04-01", use_cache=True):
         cache_path = self.file_path if use_cache else None
         return from_yfinance(self.get_tickers(), start, end, cache_path=cache_path)
-
-
-# ==========================================
-# 2. Tests
-# ==========================================
 
 
 def test_data_download():
@@ -622,3 +613,171 @@ class TestRiskSaving:
             f"Restoration formula MAE = {mae:.2e} exceeds tolerance {MAE_TOL:.2e}. "
             f"Max single-asset diff = {max(diffs.values()):.2e} on asset '{max(diffs, key=diffs.get)}'"
         )
+
+
+class TestDifferentSolver:
+    def test_quantum_basic(self):
+        """
+        Small-scale verification that the quantum Shapley pipeline works end-to-end.
+        Picks 3 assets (1 per risk bucket) and compares QuantumCalculator vs
+        BinaryEnumerationCalculator
+        """
+        REL_TOL = 0.05  # 5% relative error tolerance
+
+        dp = DataPreparation()
+        prices = dp.download()
+        returns = np.log(prices / prices.shift(1)).dropna()
+
+        buckets = divide_by_volatility(returns, [0.3, 0.7])
+        low_assets, mid_assets, high_assets = buckets[0], buckets[1], buckets[2]
+
+        rng = np.random.default_rng(seed=42)
+        assets_3 = (
+            rng.choice(high_assets, size=1, replace=False).tolist()
+            + rng.choice(mid_assets, size=1, replace=False).tolist()
+            + rng.choice(low_assets, size=1, replace=False).tolist()
+        )
+        returns_3 = returns[assets_3]
+
+        # Ground truth: exact Shapley via binary enumeration
+        src_exact = RiskAttributor(
+            returns_3, BinaryEnumerationCalculator, mode="es"
+        ).attribute()
+
+        # Quantum estimate: internal_qubits_num=6, internal_multiplier=1
+        src_quantum = RiskAttributor(
+            returns_3,
+            QuantumCalculator,
+            mode="rs",
+            internal_qubits_num=6,
+            internal_multiplier=1,
+        ).attribute()
+
+        print("\n" + "=" * 60)
+        print("Quantum vs Exact Shapley (n=3, n_l=6, mode='rs')")
+        print("=" * 60)
+        print(f"  {'Asset':<10} {'Exact':>12} {'Quantum':>12} {'RelErr':>10}")
+        print("  " + "-" * 46)
+        for a in assets_3:
+            rel_err = abs(src_quantum[a] - src_exact[a]) / abs(src_exact[a])
+            print(
+                f"  {a:<10} {src_exact[a]:>12.6f} {src_quantum[a]:>12.6f} {rel_err:>10.4%}"
+            )
+        print("=" * 60 + "\n")
+
+        for a in assets_3:
+            rel_err = abs(src_quantum[a] - src_exact[a]) / abs(src_exact[a])
+            assert rel_err < REL_TOL, (
+                f"Relative error for {a} = {rel_err:.4%} exceeds {REL_TOL:.0%}"
+            )
+
+    def test_precision_convergence(self):
+        """
+        Monte Carlo sub-sampling experiment: for each portfolio size n (3-6),
+        measure how quantum Shapley estimation error converges as the number
+        of interval-register qubits n_l increases from 4 to 8.
+
+        Produces one boxplot per portfolio size, saved to docs/assets/.
+        """
+        N_ROUNDS = 50
+        ASSET_SIZES = [3, 4, 5, 6]
+        QUBIT_RANGE = [4, 5, 6, 7, 8]
+        # How many assets to draw from each bucket per portfolio size
+        BUCKET_SCHEME = {
+            3: (1, 1, 1),  # (high, mid, low)
+            4: (1, 2, 1),
+            5: (2, 2, 1),
+            6: (2, 2, 2),
+        }
+
+        dp = DataPreparation()
+        prices = dp.download()
+        returns = np.log(prices / prices.shift(1)).dropna()
+
+        buckets = divide_by_volatility(returns, [0.3, 0.7])
+        low_assets, mid_assets, high_assets = buckets[0], buckets[1], buckets[2]
+        rng = np.random.default_rng(seed=0)
+
+        output_dir = "docs/assets"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        for n in ASSET_SIZES:
+            n_high, n_mid, n_low = BUCKET_SCHEME[n]
+            records = []  # (n_l, rel_error) per round
+
+            for round_idx in range(N_ROUNDS):
+                # Sample assets from each bucket
+                sampled = (
+                    rng.choice(high_assets, size=n_high, replace=False).tolist()
+                    + rng.choice(mid_assets, size=n_mid, replace=False).tolist()
+                    + rng.choice(low_assets, size=n_low, replace=False).tolist()
+                )
+                ret_sub = returns[sampled]
+
+                # Exact SRC via binary enumeration
+                src_exact = RiskAttributor(
+                    ret_sub, BinaryEnumerationCalculator, mode="rs"
+                ).attribute()
+
+                for n_l in QUBIT_RANGE:
+                    src_q = RiskAttributor(
+                        ret_sub,
+                        QuantumCalculator,
+                        mode="rs",
+                        internal_qubits_num=n_l,
+                        internal_multiplier=1,
+                    ).attribute()
+
+                    # Mean relative error across assets
+                    rel_errors = [
+                        abs(src_q[a] - src_exact[a]) / abs(src_exact[a])
+                        for a in sampled
+                        if abs(src_exact[a]) > 1e-12
+                    ]
+                    mean_rel_err = float(np.mean(rel_errors)) if rel_errors else 0.0
+                    records.append({"n_l": n_l, "rel_error": mean_rel_err})
+
+                if (round_idx + 1) % 10 == 0:
+                    print(f"  n={n}: {round_idx + 1}/{N_ROUNDS} rounds done")
+
+            # Build DataFrame and plot
+            df_records = pd.DataFrame(records)
+
+            sns.set_theme(
+                style="whitegrid",
+                context="paper",
+                font_scale=1.8,
+                rc={"font.family": "Times New Roman"},
+            )
+            fig, ax = plt.subplots(figsize=(7, 4.5))
+
+            sns.boxplot(
+                data=df_records,
+                x="n_l",
+                y="rel_error",
+                color="#7aa3c4",
+                width=0.5,
+                fliersize=3,
+                ax=ax,
+            )
+            ax.set_xlabel(r"Interval Register Qubits ($n_l$)")
+            ax.set_ylabel("Mean Relative Error")
+            ax.grid(True, linestyle="--", alpha=0.5)
+
+            plt.tight_layout()
+            fig_path = os.path.join(output_dir, f"convergence_n{n}.svg")
+            plt.savefig(fig_path)
+            plt.show()
+            print(f"  Saved: {fig_path}")
+
+            # Print summary statistics
+            print(f"\n  Summary for n={n}:")
+            for n_l in QUBIT_RANGE:
+                subset = df_records[df_records["n_l"] == n_l]["rel_error"]
+                print(
+                    f"    n_l={n_l}: mean={subset.mean():.4%}, "
+                    f"median={subset.median():.4%}, IQR=[{subset.quantile(0.25):.4%}, {subset.quantile(0.75):.4%}]"
+                )
+            print()
+
