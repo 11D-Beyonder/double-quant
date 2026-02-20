@@ -1,14 +1,51 @@
 import numpy as np
-from qiskit import QuantumRegister, QuantumCircuit
-from qiskit.circuit.library import BlueprintCircuit, StatePreparation, UCRYGate
+from dataclasses import dataclass
 from itertools import permutations
+from typing import Literal, Protocol
+
+from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
+from qiskit.circuit.library import BlueprintCircuit, StatePreparation, UCRYGate
+from qiskit.primitives import StatevectorSampler
 from qiskit.quantum_info import Statevector
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit_aer.backends import AerSimulator
+from qiskit_algorithms import (
+    AmplitudeEstimation,
+    EstimationProblem,
+    IterativeAmplitudeEstimation,
+    MaximumLikelihoodAmplitudeEstimation,
+)
 from scipy import special
-from typing import Protocol
 
 from double_quant.common.util import normalize
+
+# Amplitude extraction mode for QuantumCalculator.
+# - "statevector": exact extraction via Statevector simulation (1 oracle call)
+# - "shots": shot-based sampling via StatevectorSampler (oracle calls = shots)
+# - "qae_canonical": canonical QAE using Quantum Phase Estimation
+# - "qae_iqae": Iterative QAE — no ancilla, adaptive Grover iterations
+# - "qae_mlqae": Maximum-Likelihood QAE — multi-depth circuits + MLE post-processing
+ExtractionMode = Literal[
+    "statevector", "shots", "qae_canonical", "qae_iqae", "qae_mlqae"
+]
+
+
+@dataclass
+class QAEOptions:
+    """Parameters controlling the amplitude extraction strategy of QuantumCalculator.
+
+    Fields are mode-specific; unused fields for a given mode are ignored.
+    """
+
+    # "shots" mode: number of measurement shots
+    shots: int = 1024
+    # All QAE modes: target precision (half confidence-interval width)
+    epsilon: float = 0.01
+    # IQAE / MLQAE: confidence level; probability of exceeding epsilon is <= alpha
+    alpha: float = 0.05
+    # "qae_canonical": number of QPE evaluation qubits; oracle calls ~ 2^num_eval_qubits
+    # "qae_mlqae": evaluation schedule depth; oracle calls ~ 2^num_eval_qubits
+    num_eval_qubits: int = 3
 
 
 class ValueFunction(Protocol):
@@ -150,8 +187,6 @@ class ValueLoader(ControlledBlueprintCircuit):
                 values_array = values_array / max_val
 
         self._values = values_array
-
-        # 按照 play_index 分为两段
 
     def _check_configuration(self, raise_on_failure=True) -> bool:
         return (
@@ -304,6 +339,8 @@ class QuantumCalculator(ShapleyCalculator):
         value_dict: ValueFunction | None = None,
         internal_qubits_num: int | None = None,
         internal_multiplier: float = 2,
+        extraction_mode: ExtractionMode = "statevector",
+        options: QAEOptions | None = None,
     ):
         super().__init__(num_players, value_dict)
         if internal_qubits_num is None:
@@ -322,6 +359,9 @@ class QuantumCalculator(ShapleyCalculator):
         self._init_circuit = self._initilizae_circuit()
         self._simulator = AerSimulator(method="statevector")
         self._pass_manager = generate_preset_pass_manager(3, self._simulator)
+        self._extraction_mode = extraction_mode
+        self._options = options
+        self._oracle_call_counts: list[int | None] = [None] * num_players
 
     def _initilizae_circuit(self):
         circuit = QuantumCircuit(
@@ -374,18 +414,99 @@ class QuantumCalculator(ShapleyCalculator):
         )
         return circuit, max_contribution
 
-    def _calculate_one(self, player_index: int):
+    def get_oracle_count(self, player_index: int) -> int | None:
+        """Return the number of oracle calls used to estimate the amplitude for
+        the given player. Returns None if the player's Shapley value has not
+        been computed yet."""
+        return self._oracle_call_counts[player_index]
+
+    def _run_statevector(
+        self, circuit: QuantumCircuit, max_contribution: float
+    ) -> tuple[float, int]:
+        """Extract amplitude via exact Statevector simulation. Oracle count = 1."""
+        output_qubit = self.qreg_qubit_map["output"][0]
+        prob = Statevector(self._pass_manager.run(circuit)).probabilities(
+            [output_qubit]
+        )[1]
+        return float(prob * max_contribution), 1
+
+    def _run_shots(
+        self, circuit: QuantumCircuit, max_contribution: float
+    ) -> tuple[float, int]:
+        """Estimate amplitude by shot-based sampling. Oracle count = shots."""
+        if self._options is None:
+            raise ValueError("QAEOptions required for extraction_mode='shots'")
+        shots = self._options.shots
+        output_qubit = self.qreg_qubit_map["output"][0]
+
+        meas_circuit = circuit.copy()
+        cr = ClassicalRegister(1, "out")
+        meas_circuit.add_register(cr)
+        meas_circuit.measure(output_qubit, cr[0])
+
+        sampler = StatevectorSampler()
+        job = sampler.run([meas_circuit], shots=shots)
+        counts = job.result()[0].data.out.get_counts()
+        good = counts.get("1", 0)
+        return float(good / shots * max_contribution), shots
+
+    def _run_qae(
+        self, circuit: QuantumCircuit, max_contribution: float
+    ) -> tuple[float, int]:
+        """Estimate amplitude via Quantum Amplitude Estimation.
+
+        Dispatches to one of three QAE variants based on self._extraction_mode:
+        - "qae_canonical": standard QPE-based QAE
+        - "qae_iqae": iterative QAE (no ancilla, adaptive Grover iterations)
+        - "qae_mlqae": maximum-likelihood QAE (multi-depth + MLE)
+        """
+        if self._options is None:
+            raise ValueError(
+                f"QAEOptions required for extraction_mode='{self._extraction_mode}'"
+            )
+        opts = self._options
+        output_qubit = self.qreg_qubit_map["output"][0]
+
+        problem = EstimationProblem(
+            state_preparation=circuit,
+            objective_qubits=[output_qubit],
+        )
+        sampler = StatevectorSampler()
+
+        if self._extraction_mode == "qae_canonical":
+            algo: AmplitudeEstimation | IterativeAmplitudeEstimation | MaximumLikelihoodAmplitudeEstimation = AmplitudeEstimation(
+                num_eval_qubits=opts.num_eval_qubits,
+                sampler=sampler,
+            )
+        elif self._extraction_mode == "qae_iqae":
+            algo = IterativeAmplitudeEstimation(
+                epsilon_target=opts.epsilon,
+                alpha=opts.alpha,
+                sampler=sampler,
+            )
+        else:  # qae_mlqae
+            algo = MaximumLikelihoodAmplitudeEstimation(
+                evaluation_schedule=opts.num_eval_qubits,
+                sampler=sampler,
+            )
+
+        result = algo.estimate(problem)
+        return float(result.estimation * max_contribution), result.num_oracle_queries
+
+    def _calculate_one(self, player_index: int) -> float:
         circuit, max_contribution = self._extend_circuit(player_index)
-        # circuit can technically be None if compose failed but here we expect it to be QuantumCircuit
         if circuit is None:
             raise RuntimeError("Failed to extend circuit")
 
-        return float(
-            Statevector(self._pass_manager.run(circuit)).probabilities(
-                self.qreg_qubit_map["output"]
-            )[1]
-            * max_contribution
-        )
+        if self._extraction_mode == "statevector":
+            value, count = self._run_statevector(circuit, max_contribution)
+        elif self._extraction_mode == "shots":
+            value, count = self._run_shots(circuit, max_contribution)
+        else:
+            value, count = self._run_qae(circuit, max_contribution)
+
+        self._oracle_call_counts[player_index] = count
+        return value
 
 
 """

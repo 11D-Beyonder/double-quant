@@ -34,6 +34,8 @@ The mathematical theory behind each module's implementation is documented in `do
 uv sync
 ```
 
+Use `uv add <package-name>` to add dependencies. Use `--dev` to add dependencies that only for unit tests.
+
 ### Building
 
 ```bash
@@ -60,6 +62,7 @@ Never run test unless the user requests it voluntarily.
 - **Type Hints:** The project uses full type hints (`py.typed` is present).
 - **Linting:** Follows `ruff` guidelines (implied by documentation).
 - **Directory Structure:** Uses the `src/` layout.
+- Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
 
 ### Commit Messages
 

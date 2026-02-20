@@ -124,4 +124,70 @@ $$\tilde{\Phi}_i = W_{\max} \cdot P(|1\rangle)$$
 
 In the current implementation this probability is read directly from a statevector simulation (Qiskit Aer). In a hardware deployment, **Quantum Amplitude Estimation (QAE)** would extract P(|1⟩) with O(1/ε) circuit repetitions, achieving a quadratic speedup over classical Monte Carlo's O(1/ε²).
 
-> **Implementation:** `QuantumCalculator._calculate_one(target_player)` in `double_quant.solver.shapley` builds and simulates this circuit for each target player.
+> **Implementation:** `QuantumCalculator._calculate_one(target_player)` in `double_quant.solver.shapley` builds and simulates this circuit for each target player. The extraction method is selected via the `extraction_mode` parameter (see §7).
+
+---
+
+## 7. Amplitude Extraction Modes
+
+`QuantumCalculator` supports five amplitude extraction modes, controlled by the `extraction_mode` constructor parameter. All modes share the same circuit construction (§5); only the final amplitude extraction step differs.
+
+| Mode | Class / Primitive | Oracle calls (per player) | Notes |
+|---|---|---|---|
+| `"statevector"` | `qiskit.quantum_info.Statevector` | 1 | Exact; no shot noise. Default mode. |
+| `"shots"` | `qiskit.primitives.StatevectorSampler` | = `shots` | Simulates hardware measurement statistics. |
+| `"qae_canonical"` | `qiskit_algorithms.AmplitudeEstimation` | ~ 2^`num_eval_qubits` | QPE-based; requires extra ancilla qubits. |
+| `"qae_iqae"` | `qiskit_algorithms.IterativeAmplitudeEstimation` | O(1/ε) | No ancilla; adaptive Grover iterations. |
+| `"qae_mlqae"` | `qiskit_algorithms.MaximumLikelihoodAmplitudeEstimation` | O(1/ε) | Multi-depth circuits + MLE post-processing. |
+
+Mode-specific parameters are passed via a `QAEOptions` dataclass:
+
+```python
+@dataclass
+class QAEOptions:
+    shots: int = 1024         # "shots" mode
+    epsilon: float = 0.01     # QAE modes: target precision (half CI width)
+    alpha: float = 0.05       # IQAE / MLQAE: confidence level
+    num_eval_qubits: int = 3  # canonical QAE / MLQAE: circuit depth parameter
+```
+
+### Oracle Query Counting
+
+After `get_one(i)` or `get_all()` is called, the number of oracle invocations used for each player is accessible via:
+
+```python
+count: int | None = calc.get_oracle_count(player_index)
+```
+
+- Returns `None` if the player's value has not been computed yet.
+- For QAE modes the count comes directly from `result.num_oracle_queries` returned by `qiskit-algorithms`.
+- For `"shots"` it equals `options.shots`; for `"statevector"` it is always 1.
+
+### Complexity Comparison
+
+The oracle-call counts enable empirical verification of the quadratic speedup:
+
+| Strategy | Oracle calls to reach precision ε |
+|---|---|
+| Classical Monte Carlo | O(1/ε²) |
+| Quantum (QAE) | O(1/ε) |
+
+For details on the experimental methodology see `tests/double_quant/application/EXPERIMENT.md`.
+
+### Usage Example
+
+```python
+from double_quant.solver.shapley import QuantumCalculator, QAEOptions
+
+# Iterative QAE with target precision 1%
+calc = QuantumCalculator(
+    num_players=3,
+    value_dict=my_value_function,
+    internal_qubits_num=6,
+    internal_multiplier=1,
+    extraction_mode="qae_iqae",
+    options=QAEOptions(epsilon=0.01, alpha=0.05),
+)
+shapley_values = calc.get_all()
+oracle_counts = [calc.get_oracle_count(i) for i in range(3)]
+```
