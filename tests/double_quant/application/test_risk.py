@@ -5,7 +5,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.patches import FancyBboxPatch
 from double_quant.application.risk import RiskAttributor, RiskSavingValueFunction
-from double_quant.solver.shapley import BinaryEnumerationCalculator
+from double_quant.solver.shapley import (
+    BinaryEnumerationCalculator,
+    QAEOptions,
+    QuantumCalculator,
+)
 from double_quant.common.metric import annualized_volatility
 from double_quant.common.util import divide_by_volatility
 from double_quant.data.time_series import from_yfinance
@@ -781,3 +785,178 @@ class TestDifferentSolver:
                 )
             print()
 
+
+class TestQuantumSolver:
+    def test_shots_convergence(self):
+        """Verify that the shots-based extractor converges toward the statevector
+        ground truth as the number of shots increases.
+
+        Uses a fixed 3-asset portfolio so the test is fast and reproducible.
+        Checks that mean relative error strictly decreases across shot counts.
+        """
+        SHOT_COUNTS = [256, 1024, 4096]
+
+        dp = DataPreparation()
+        prices = dp.download()
+        returns = np.log(prices / prices.shift(1)).dropna()
+
+        buckets = divide_by_volatility(returns, [0.3, 0.7])
+        low_assets, mid_assets, high_assets = buckets[0], buckets[1], buckets[2]
+
+        rng = np.random.default_rng(seed=7)
+        assets_3 = (
+            rng.choice(high_assets, size=1, replace=False).tolist()
+            + rng.choice(mid_assets, size=1, replace=False).tolist()
+            + rng.choice(low_assets, size=1, replace=False).tolist()
+        )
+        returns_3 = returns[assets_3]
+
+        src_exact = RiskAttributor(
+            returns_3, BinaryEnumerationCalculator, mode="es"
+        ).attribute()
+
+        errors = []
+        for shots in SHOT_COUNTS:
+            src_shots = RiskAttributor(
+                returns_3,
+                QuantumCalculator,
+                mode="rs",
+                internal_qubits_num=6,
+                internal_multiplier=1,
+                extraction_mode="shots",
+                options=QAEOptions(shots=shots),
+            ).attribute()
+            mean_err = float(
+                np.mean(
+                    [
+                        abs(src_shots[a] - src_exact[a]) / abs(src_exact[a])
+                        for a in assets_3
+                        if abs(src_exact[a]) > 1e-12
+                    ]
+                )
+            )
+            errors.append(mean_err)
+            print(f"  shots={shots:>5}: mean_rel_err={mean_err:.4%}")
+
+        assert errors[-1] < errors[0], (
+            "Error should decrease as shots increase: "
+            f"{errors[0]:.4%} -> {errors[-1]:.4%}"
+        )
+
+    def test_qae_modes_basic(self):
+        """Verify all three QAE extraction modes produce results close to the
+        exact classical Shapley values on a 3-asset portfolio.
+
+        Absolute error is used rather than relative error because Shapley values
+        for low-risk assets can be near zero, making relative error meaningless.
+        """
+        # Absolute Shapley-value tolerance.
+        # Observed absolute errors: canonical ~0.001, IQAE ~0.003, MLQAE ~0.001.
+        ABS_TOL = 0.005
+
+        dp = DataPreparation()
+        prices = dp.download()
+        returns = np.log(prices / prices.shift(1)).dropna()
+
+        buckets = divide_by_volatility(returns, [0.3, 0.7])
+        low_assets, mid_assets, high_assets = buckets[0], buckets[1], buckets[2]
+
+        rng = np.random.default_rng(seed=13)
+        assets_3 = (
+            rng.choice(high_assets, size=1, replace=False).tolist()
+            + rng.choice(mid_assets, size=1, replace=False).tolist()
+            + rng.choice(low_assets, size=1, replace=False).tolist()
+        )
+        returns_3 = returns[assets_3]
+
+        src_exact = RiskAttributor(
+            returns_3, BinaryEnumerationCalculator, mode="es"
+        ).attribute()
+
+        qae_modes = ["qae_canonical", "qae_iqae", "qae_mlqae"]
+        opts = QAEOptions(epsilon=0.05, alpha=0.05, num_eval_qubits=4)
+
+        print("\n" + "=" * 65)
+        print(f"QAE modes vs exact Shapley (n=3, abs_tol={ABS_TOL})")
+        print("=" * 65)
+
+        for qae_mode in qae_modes:
+            src_qae = RiskAttributor(
+                returns_3,
+                QuantumCalculator,
+                mode="rs",
+                internal_qubits_num=6,
+                internal_multiplier=1,
+                extraction_mode=qae_mode,
+                options=opts,
+            ).attribute()
+
+            print(f"\n  [{qae_mode}]")
+            print(f"  {'Asset':<10} {'Exact':>12} {'QAE':>12} {'AbsErr':>10}")
+            print("  " + "-" * 48)
+            for a in assets_3:
+                abs_err = abs(src_qae[a] - src_exact[a])
+                print(
+                    f"  {a:<10} {src_exact[a]:>12.6f} {src_qae[a]:>12.6f} {abs_err:>10.6f}"
+                )
+                assert abs_err < ABS_TOL, (
+                    f"[{qae_mode}] abs error for {a} = {abs_err:.6f} exceeds {ABS_TOL}"
+                )
+
+        print("=" * 65 + "\n")
+
+    def test_oracle_count_tracked(self):
+        """Verify that oracle call counts are recorded after computation and
+        that the shots mode count equals the configured number of shots.
+        """
+        dp = DataPreparation()
+        prices = dp.download()
+        returns = np.log(prices / prices.shift(1)).dropna()
+
+        buckets = divide_by_volatility(returns, [0.3, 0.7])
+        low_assets, mid_assets, high_assets = buckets[0], buckets[1], buckets[2]
+
+        rng = np.random.default_rng(seed=99)
+        assets_3 = (
+            rng.choice(high_assets, size=1, replace=False).tolist()
+            + rng.choice(mid_assets, size=1, replace=False).tolist()
+            + rng.choice(low_assets, size=1, replace=False).tolist()
+        )
+        returns_3 = returns[assets_3]
+
+        vfunc = RiskSavingValueFunction(returns_3)
+        n = len(assets_3)
+
+        modes_opts: list[tuple[str, QAEOptions | None]] = [
+            ("statevector", None),
+            ("shots", QAEOptions(shots=512)),
+            ("qae_canonical", QAEOptions(num_eval_qubits=3)),
+            ("qae_iqae", QAEOptions(epsilon=0.05, alpha=0.05)),
+            ("qae_mlqae", QAEOptions(num_eval_qubits=3)),
+        ]
+
+        print("\n  Oracle call counts per mode:")
+        for extraction_mode, opts in modes_opts:
+            calc = QuantumCalculator(
+                n,
+                vfunc,
+                internal_qubits_num=6,
+                internal_multiplier=1,
+                extraction_mode=extraction_mode,
+                options=opts,
+            )
+            _ = calc.get_all()
+
+            for i in range(n):
+                count = calc.get_oracle_count(i)
+                assert count is not None, (
+                    f"[{extraction_mode}] oracle count for player {i} is None"
+                )
+                if extraction_mode == "shots":
+                    assert count == opts.shots, (  # type: ignore[union-attr]
+                        f"[shots] expected count={opts.shots}, got {count}"  # type: ignore[union-attr]
+                    )
+
+            print(
+                f"  {extraction_mode:<15}: {[calc.get_oracle_count(i) for i in range(n)]}"
+            )
