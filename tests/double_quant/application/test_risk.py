@@ -1123,3 +1123,137 @@ class TestPerformanceBenchmark:
             print(f"\n  Summary for n={n}:")
             print(df_agg[df_agg["n_l"] == 7].to_string(index=False))
             print()
+
+    def test_quantum_vs_classical_mc(self):
+        """Stage 2: Compare best quantum method vs classical MC by oracle efficiency.
+
+        Uses PermutationMCCalculator with varying sample counts.
+        Plots oracle_calls vs mean_rel_err for both approaches.
+        """
+        from double_quant.solver.shapley import PermutationMCCalculator
+
+        N_ROUNDS = 30
+        SAMPLE_COUNTS = [10, 20, 50, 100]  # For classical MC
+        N_PLAYERS = 5
+        N_L_QUANTUM = 6  # Fixed interval qubits for quantum
+
+        dp = DataPreparation()
+        prices = dp.download()
+        returns = np.log(prices / prices.shift(1)).dropna()
+
+        buckets = divide_by_volatility(returns, [0.3, 0.7])
+        low_assets, mid_assets, high_assets = buckets[0], buckets[1], buckets[2]
+        rng = np.random.default_rng(seed=123)
+
+        # Best quantum method from Stage 1 (e.g., qae_iqae)
+        QUANTUM_MODE = "qae_iqae"
+        QUANTUM_OPTS = QAEOptions(epsilon=0.05, alpha=0.05)
+
+        records = []
+
+        for round_idx in range(N_ROUNDS):
+            # Sample 5 assets: 2 high, 2 mid, 1 low
+            sampled = (
+                rng.choice(high_assets, size=2, replace=False).tolist()
+                + rng.choice(mid_assets, size=2, replace=False).tolist()
+                + rng.choice(low_assets, size=1, replace=False).tolist()
+            )
+            ret_sub = returns[sampled]
+
+            # Ground truth
+            vfunc = RiskSavingValueFunction(ret_sub)
+            calc_exact = BinaryEnumerationCalculator(N_PLAYERS, vfunc)
+            exact = calc_exact.get_all()
+
+            # Classical MC with varying samples
+            for T in SAMPLE_COUNTS:
+                calc_mc = PermutationMCCalculator(N_PLAYERS, vfunc, num_samples=T, seed=round_idx)
+                mc = calc_mc.get_all()
+
+                rel_errors = [
+                    abs(mc[i] - exact[i]) / abs(exact[i])
+                    for i in range(N_PLAYERS)
+                    if abs(exact[i]) > 1e-12
+                ]
+                mean_rel_err = float(np.mean(rel_errors)) if rel_errors else 0.0
+                oracle_calls = calc_mc.get_oracle_count(0)  # Same for all players
+
+                records.append({
+                    "method": "Classical MC",
+                    "oracle_calls": oracle_calls,
+                    "rel_error": mean_rel_err,
+                })
+
+            # Quantum method
+            calc_q = QuantumCalculator(
+                N_PLAYERS,
+                vfunc,
+                internal_qubits_num=N_L_QUANTUM,
+                internal_multiplier=1,
+                extraction_mode=QUANTUM_MODE,
+                options=QUANTUM_OPTS,
+            )
+            quantum = calc_q.get_all()
+
+            rel_errors = [
+                abs(quantum[i] - exact[i]) / abs(exact[i])
+                for i in range(N_PLAYERS)
+                if abs(exact[i]) > 1e-12
+            ]
+            mean_rel_err = float(np.mean(rel_errors)) if rel_errors else 0.0
+            oracle_calls = calc_q.get_oracle_count(0) or 1
+
+            records.append({
+                "method": f"Quantum ({QUANTUM_MODE})",
+                "oracle_calls": oracle_calls,
+                "rel_error": mean_rel_err,
+            })
+
+            if (round_idx + 1) % 10 == 0:
+                print(f"  {round_idx + 1}/{N_ROUNDS} rounds done")
+
+        # Aggregate and plot
+        df = pd.DataFrame(records)
+        df_agg = df.groupby(["method", "oracle_calls"])["rel_error"].agg(["mean", "std"]).reset_index()
+
+        output_dir = "docs/assets"
+        os.makedirs(output_dir, exist_ok=True)
+
+        sns.set_theme(
+            style="whitegrid",
+            context="paper",
+            font_scale=1.8,
+            rc={"font.family": "Times New Roman"},
+        )
+        fig, ax = plt.subplots(figsize=(8, 5))
+
+        colors = {"Classical MC": "#377eb8", f"Quantum ({QUANTUM_MODE})": "#ff7f00"}
+
+        for method in df_agg["method"].unique():
+            subset = df_agg[df_agg["method"] == method]
+            ax.errorbar(
+                subset["oracle_calls"],
+                subset["mean"],
+                yerr=subset["std"],
+                marker="o",
+                label=method,
+                color=colors.get(method, "gray"),
+                linewidth=2,
+                capsize=3,
+            )
+
+        ax.set_xlabel("Oracle Calls")
+        ax.set_ylabel("Mean Relative Error")
+        ax.legend(loc="upper right", fontsize=12)
+        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.set_xscale("log")
+
+        plt.tight_layout()
+        fig_path = os.path.join(output_dir, "quantum_vs_classical_mc.svg")
+        plt.savefig(fig_path)
+        plt.show()
+        print(f"Saved: {fig_path}")
+
+        # Print summary
+        print("\nSummary:")
+        print(df_agg.to_string(index=False))
