@@ -7,12 +7,36 @@ from matplotlib.patches import FancyBboxPatch
 from double_quant.application.risk import RiskAttributor, RiskSavingValueFunction
 from double_quant.solver.shapley import (
     BinaryEnumerationCalculator,
+    PermutationMCCalculator,
     QAEOptions,
     QuantumCalculator,
 )
 from double_quant.common.metric import annualized_volatility
 from double_quant.common.util import divide_by_volatility
 from double_quant.data.time_series import from_yfinance
+
+
+def test_permutation_mc_basic():
+    """Verify PermutationMCCalculator converges to exact Shapley with enough samples."""
+    from double_quant.solver.shapley import PermutationMCCalculator
+
+    # Simple superadditive value function: v(S) = |S|^2
+    num_players = 4
+    value_dict = {s: bin(s).count("1") ** 2 for s in range(2**num_players)}
+
+    calc_exact = BinaryEnumerationCalculator(num_players, value_dict)
+    calc_mc = PermutationMCCalculator(num_players, value_dict, num_samples=1000, seed=42)
+
+    exact = calc_exact.get_all()
+    mc = calc_mc.get_all()
+
+    # Should be close with 1000 samples
+    for i in range(num_players):
+        rel_err = abs(mc[i] - exact[i]) / abs(exact[i]) if exact[i] != 0 else abs(mc[i])
+        assert rel_err < 0.1, f"Player {i}: rel_err={rel_err:.4f} > 0.1"
+
+    print("MC estimate:", mc)
+    print("Exact:", exact)
 
 
 class DataPreparation:
