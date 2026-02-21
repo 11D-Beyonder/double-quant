@@ -984,3 +984,142 @@ class TestQuantumSolver:
             print(
                 f"  {extraction_mode:<15}: {[calc.get_oracle_count(i) for i in range(n)]}"
             )
+
+
+class TestPerformanceBenchmark:
+    def test_quantum_methods_comparison(self):
+        """Stage 1: Compare all quantum extraction methods under fixed interval qubits.
+
+        Generates line plots (x=n_l, y=mean_rel_err) for each portfolio size.
+        Methods: statevector, shots(1024), shots(4096), qae_iqae, qae_mlqae, qae_fae
+        """
+        N_ROUNDS = 50
+        ASSET_SIZES = [3, 4, 5, 6]
+        QUBIT_RANGE = [3, 4, 5, 6, 7]
+        BUCKET_SCHEME = {
+            3: (1, 1, 1),
+            4: (1, 2, 1),
+            5: (2, 2, 1),
+            6: (2, 2, 2),
+        }
+
+        # Define methods to compare
+        METHODS = [
+            ("statevector", None),
+            ("shots", QAEOptions(shots=1024)),
+            ("shots", QAEOptions(shots=4096)),
+            ("qae_iqae", QAEOptions(epsilon=0.05, alpha=0.05)),
+            ("qae_mlqae", QAEOptions(num_eval_qubits=4)),
+            ("qae_fae", QAEOptions(delta=0.05, maxiter=5)),
+        ]
+        METHOD_LABELS = [
+            "statevector",
+            "shots(1024)",
+            "shots(4096)",
+            "qae_iqae",
+            "qae_mlqae",
+            "qae_fae",
+        ]
+
+        dp = DataPreparation()
+        prices = dp.download()
+        returns = np.log(prices / prices.shift(1)).dropna()
+
+        buckets = divide_by_volatility(returns, [0.3, 0.7])
+        low_assets, mid_assets, high_assets = buckets[0], buckets[1], buckets[2]
+        rng = np.random.default_rng(seed=0)
+
+        output_dir = "docs/assets"
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Color palette for methods
+        palette = sns.color_palette("husl", len(METHODS))
+
+        for n in ASSET_SIZES:
+            n_high, n_mid, n_low = BUCKET_SCHEME[n]
+            # records: list of {n_l, method_idx, rel_error}
+            records = []
+
+            for round_idx in range(N_ROUNDS):
+                sampled = (
+                    rng.choice(high_assets, size=n_high, replace=False).tolist()
+                    + rng.choice(mid_assets, size=n_mid, replace=False).tolist()
+                    + rng.choice(low_assets, size=n_low, replace=False).tolist()
+                )
+                ret_sub = returns[sampled]
+
+                # Ground truth
+                src_exact = RiskAttributor(
+                    ret_sub, BinaryEnumerationCalculator, mode="rs"
+                ).attribute()
+
+                for n_l in QUBIT_RANGE:
+                    for method_idx, (mode_name, opts) in enumerate(METHODS):
+                        try:
+                            src_q = RiskAttributor(
+                                ret_sub,
+                                QuantumCalculator,
+                                mode="rs",
+                                internal_qubits_num=n_l,
+                                internal_multiplier=1,
+                                extraction_mode=mode_name,
+                                options=opts,
+                            ).attribute()
+
+                            rel_errors = [
+                                abs(src_q[a] - src_exact[a]) / abs(src_exact[a])
+                                for a in sampled
+                                if abs(src_exact[a]) > 1e-12
+                            ]
+                            mean_rel_err = float(np.mean(rel_errors)) if rel_errors else 0.0
+                            records.append({
+                                "n_l": n_l,
+                                "method": METHOD_LABELS[method_idx],
+                                "rel_error": mean_rel_err,
+                            })
+                        except Exception as e:
+                            # Skip failed runs (e.g., negative contributions)
+                            pass
+
+                if (round_idx + 1) % 10 == 0:
+                    print(f"  n={n}: {round_idx + 1}/{N_ROUNDS} rounds done")
+
+            # Aggregate: mean rel_error per (n_l, method)
+            df = pd.DataFrame(records)
+            df_agg = df.groupby(["n_l", "method"])["rel_error"].mean().reset_index()
+
+            # Plot line chart
+            sns.set_theme(
+                style="whitegrid",
+                context="paper",
+                font_scale=1.8,
+                rc={"font.family": "Times New Roman"},
+            )
+            fig, ax = plt.subplots(figsize=(8, 5))
+
+            for i, label in enumerate(METHOD_LABELS):
+                subset = df_agg[df_agg["method"] == label]
+                ax.plot(
+                    subset["n_l"],
+                    subset["rel_error"],
+                    marker="o",
+                    label=label,
+                    color=palette[i],
+                    linewidth=2,
+                )
+
+            ax.set_xlabel(r"Interval Register Qubits ($n_l$)")
+            ax.set_ylabel("Mean Relative Error")
+            ax.legend(loc="upper right", fontsize=10)
+            ax.grid(True, linestyle="--", alpha=0.5)
+
+            plt.tight_layout()
+            fig_path = os.path.join(output_dir, f"quantum_comparison_n{n}.svg")
+            plt.savefig(fig_path)
+            plt.show()
+            print(f"  Saved: {fig_path}")
+
+            # Print summary
+            print(f"\n  Summary for n={n}:")
+            print(df_agg[df_agg["n_l"] == 7].to_string(index=False))
+            print()
