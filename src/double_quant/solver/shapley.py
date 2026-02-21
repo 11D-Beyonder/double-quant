@@ -519,6 +519,54 @@ class QuantumCalculator(ShapleyCalculator):
         return value
 
 
+class PermutationMCCalculator(ShapleyCalculator):
+    """Classic Monte Carlo Shapley estimator using permutation sampling.
+
+    Implements the algorithm from Castro et al. (2009):
+    φ̂_i = (1/T) Σ_{t=1}^T [v(P_i^t ∪ {i}) - v(P_i^t)]
+
+    where P_i^t is the set of players preceding i in the t-th random permutation.
+    """
+
+    def __init__(
+        self,
+        num_players: int,
+        value_dict: ValueFunction | None = None,
+        num_samples: int = 100,
+        seed: int | None = None,
+    ):
+        super().__init__(num_players, value_dict)
+        self.num_samples = num_samples
+        self.rng = np.random.default_rng(seed)
+
+    def _calculate_one(self, target_player: int) -> float:
+        if self.value_dict is None:
+            raise ValueError("value_dict is required")
+
+        contribution = 0.0
+        for _ in range(self.num_samples):
+            # Generate random permutation
+            perm = list(range(self.num_players))
+            self.rng.shuffle(perm)
+
+            # Find position of target player and compute marginal contribution
+            precedent_mask = 0
+            for p in perm:
+                if p == target_player:
+                    break
+                precedent_mask |= 1 << p
+
+            # v(S ∪ {i}) - v(S)
+            with_player = precedent_mask | (1 << target_player)
+            contribution += self.value_dict[with_player] - self.value_dict[precedent_mask]
+
+        return contribution / self.num_samples
+
+    def get_oracle_count(self, player_index: int) -> int:
+        """Each sample requires 2 value function lookups."""
+        return self.num_samples * 2
+
+
 """
 QuantumCalculator
 
