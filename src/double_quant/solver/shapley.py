@@ -12,6 +12,7 @@ from qiskit_aer.backends import AerSimulator
 from qiskit_algorithms import (
     AmplitudeEstimation,
     EstimationProblem,
+    FasterAmplitudeEstimation,
     IterativeAmplitudeEstimation,
     MaximumLikelihoodAmplitudeEstimation,
 )
@@ -26,7 +27,7 @@ from double_quant.common.util import normalize
 # - "qae_iqae": Iterative QAE — no ancilla, adaptive Grover iterations
 # - "qae_mlqae": Maximum-Likelihood QAE — multi-depth circuits + MLE post-processing
 ExtractionMode = Literal[
-    "statevector", "shots", "qae_canonical", "qae_iqae", "qae_mlqae"
+    "statevector", "shots", "qae_canonical", "qae_iqae", "qae_mlqae", "qae_fae"
 ]
 
 
@@ -46,6 +47,9 @@ class QAEOptions:
     # "qae_canonical": number of QPE evaluation qubits; oracle calls ~ 2^num_eval_qubits
     # "qae_mlqae": evaluation schedule depth; oracle calls ~ 2^num_eval_qubits
     num_eval_qubits: int = 3
+    # "qae_fae": confidence parameter and max iterations
+    delta: float = 0.05
+    maxiter: int = 5
 
 
 class ValueFunction(Protocol):
@@ -474,7 +478,7 @@ class QuantumCalculator(ShapleyCalculator):
         sampler = StatevectorSampler()
 
         if self._extraction_mode == "qae_canonical":
-            algo: AmplitudeEstimation | IterativeAmplitudeEstimation | MaximumLikelihoodAmplitudeEstimation = AmplitudeEstimation(
+            algo = AmplitudeEstimation(
                 num_eval_qubits=opts.num_eval_qubits,
                 sampler=sampler,
             )
@@ -482,6 +486,12 @@ class QuantumCalculator(ShapleyCalculator):
             algo = IterativeAmplitudeEstimation(
                 epsilon_target=opts.epsilon,
                 alpha=opts.alpha,
+                sampler=sampler,
+            )
+        elif self._extraction_mode == "qae_fae":
+            algo = FasterAmplitudeEstimation(
+                delta=opts.delta,
+                maxiter=opts.maxiter,
                 sampler=sampler,
             )
         else:  # qae_mlqae
