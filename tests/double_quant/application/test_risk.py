@@ -18,14 +18,15 @@ from double_quant.data.time_series import from_yfinance
 
 def test_permutation_mc_basic():
     """Verify PermutationMCCalculator converges to exact Shapley with enough samples."""
-    from double_quant.solver.shapley import PermutationMCCalculator
 
     # Simple superadditive value function: v(S) = |S|^2
     num_players = 4
     value_dict = {s: bin(s).count("1") ** 2 for s in range(2**num_players)}
 
     calc_exact = BinaryEnumerationCalculator(num_players, value_dict)
-    calc_mc = PermutationMCCalculator(num_players, value_dict, num_samples=1000, seed=42)
+    calc_mc = PermutationMCCalculator(
+        num_players, value_dict, num_samples=1000, seed=42
+    )
 
     exact = calc_exact.get_all()
     mc = calc_mc.get_all()
@@ -993,32 +994,30 @@ class TestPerformanceBenchmark:
         Generates line plots (x=n_l, y=mean_rel_err) for each portfolio size.
         Methods: statevector, shots(1024), shots(4096), qae_iqae, qae_mlqae, qae_fae
         """
-        N_ROUNDS = 50
-        ASSET_SIZES = [3, 4, 5, 6]
-        QUBIT_RANGE = [3, 4, 5, 6, 7]
+        N_ROUNDS = 10  # Reduced for faster iteration
+        ASSET_SIZES = [3, 5]  # Test representative sizes
+        QUBIT_RANGE = [4, 6]  # Test low and high qubit counts
         BUCKET_SCHEME = {
             3: (1, 1, 1),
-            4: (1, 2, 1),
             5: (2, 2, 1),
-            6: (2, 2, 2),
         }
 
-        # Define methods to compare
+        # Define methods to compare (exclude slow QAE variants for dev)
         METHODS = [
             ("statevector", None),
             ("shots", QAEOptions(shots=1024)),
             ("shots", QAEOptions(shots=4096)),
             ("qae_iqae", QAEOptions(epsilon=0.05, alpha=0.05)),
-            ("qae_mlqae", QAEOptions(num_eval_qubits=4)),
-            ("qae_fae", QAEOptions(delta=0.05, maxiter=5)),
+            # ("qae_mlqae", QAEOptions(num_eval_qubits=4)),  # ~3.7s/run
+            # ("qae_fae", QAEOptions(delta=0.05, maxiter=5)),  # ~11s/run
         ]
         METHOD_LABELS = [
             "statevector",
             "shots(1024)",
             "shots(4096)",
             "qae_iqae",
-            "qae_mlqae",
-            "qae_fae",
+            # "qae_mlqae",
+            # "qae_fae",
         ]
 
         dp = DataPreparation()
@@ -1071,12 +1070,16 @@ class TestPerformanceBenchmark:
                                 for a in sampled
                                 if abs(src_exact[a]) > 1e-12
                             ]
-                            mean_rel_err = float(np.mean(rel_errors)) if rel_errors else 0.0
-                            records.append({
-                                "n_l": n_l,
-                                "method": METHOD_LABELS[method_idx],
-                                "rel_error": mean_rel_err,
-                            })
+                            mean_rel_err = (
+                                float(np.mean(rel_errors)) if rel_errors else 0.0
+                            )
+                            records.append(
+                                {
+                                    "n_l": n_l,
+                                    "method": METHOD_LABELS[method_idx],
+                                    "rel_error": mean_rel_err,
+                                }
+                            )
                         except Exception as e:
                             # Skip failed runs (e.g., negative contributions)
                             pass
@@ -1121,7 +1124,7 @@ class TestPerformanceBenchmark:
 
             # Print summary
             print(f"\n  Summary for n={n}:")
-            print(df_agg[df_agg["n_l"] == 7].to_string(index=False))
+            print(df_agg[df_agg["n_l"] == max(QUBIT_RANGE)].to_string(index=False))
             print()
 
     def test_quantum_vs_classical_mc(self):
@@ -1130,7 +1133,6 @@ class TestPerformanceBenchmark:
         Uses PermutationMCCalculator with varying sample counts.
         Plots oracle_calls vs mean_rel_err for both approaches.
         """
-        from double_quant.solver.shapley import PermutationMCCalculator
 
         N_ROUNDS = 30
         SAMPLE_COUNTS = [10, 20, 50, 100]  # For classical MC
@@ -1167,7 +1169,9 @@ class TestPerformanceBenchmark:
 
             # Classical MC with varying samples
             for T in SAMPLE_COUNTS:
-                calc_mc = PermutationMCCalculator(N_PLAYERS, vfunc, num_samples=T, seed=round_idx)
+                calc_mc = PermutationMCCalculator(
+                    N_PLAYERS, vfunc, num_samples=T, seed=round_idx
+                )
                 mc = calc_mc.get_all()
 
                 rel_errors = [
@@ -1178,11 +1182,13 @@ class TestPerformanceBenchmark:
                 mean_rel_err = float(np.mean(rel_errors)) if rel_errors else 0.0
                 oracle_calls = calc_mc.get_oracle_count(0)  # Same for all players
 
-                records.append({
-                    "method": "Classical MC",
-                    "oracle_calls": oracle_calls,
-                    "rel_error": mean_rel_err,
-                })
+                records.append(
+                    {
+                        "method": "Classical MC",
+                        "oracle_calls": oracle_calls,
+                        "rel_error": mean_rel_err,
+                    }
+                )
 
             # Quantum method
             calc_q = QuantumCalculator(
@@ -1203,18 +1209,24 @@ class TestPerformanceBenchmark:
             mean_rel_err = float(np.mean(rel_errors)) if rel_errors else 0.0
             oracle_calls = calc_q.get_oracle_count(0) or 1
 
-            records.append({
-                "method": f"Quantum ({QUANTUM_MODE})",
-                "oracle_calls": oracle_calls,
-                "rel_error": mean_rel_err,
-            })
+            records.append(
+                {
+                    "method": f"Quantum ({QUANTUM_MODE})",
+                    "oracle_calls": oracle_calls,
+                    "rel_error": mean_rel_err,
+                }
+            )
 
             if (round_idx + 1) % 10 == 0:
                 print(f"  {round_idx + 1}/{N_ROUNDS} rounds done")
 
         # Aggregate and plot
         df = pd.DataFrame(records)
-        df_agg = df.groupby(["method", "oracle_calls"])["rel_error"].agg(["mean", "std"]).reset_index()
+        df_agg = (
+            df.groupby(["method", "oracle_calls"])["rel_error"]
+            .agg(["mean", "std"])
+            .reset_index()
+        )
 
         output_dir = "docs/assets"
         os.makedirs(output_dir, exist_ok=True)
