@@ -47,10 +47,10 @@ uv build
 Tests are located in `tests/` and use `pytest`.
 ```bash
 # Run all tests
-uv run pytest
+uv run pytest -s -v
 
 # Run with coverage
-uv run pytest --cov=double_quant
+uv run pytest --cov=double_quant -s -v
 ```
 
 Never run test unless the user requests it voluntarily.
