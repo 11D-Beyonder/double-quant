@@ -1,0 +1,15 @@
+method,epsilon,mean_calls,std_calls,reachable_ratio,source_type
+Classical MC,0.001,307833.625,119916.19545742925,1.0,fallback
+ML-QAE,0.001,27648.0,7094.480107802121,1.0,discrete
+Classical MC,0.002,75187.875,28584.452528592796,1.0,mixed
+ML-QAE,0.002,12288.0,8127.748027590423,1.0,discrete
+Classical MC,0.005,19250.0,9692.135987490065,1.0,discrete
+ML-QAE,0.005,5632.0,1982.9674732581975,1.0,discrete
+Classical MC,0.01,6000.0,3162.2776601683795,1.0,discrete
+ML-QAE,0.01,3072.0,0.0,1.0,discrete
+Classical MC,0.02,1270.0,641.7943595888016,1.0,discrete
+ML-QAE,0.02,3072.0,0.0,1.0,discrete
+Classical MC,0.05,200.0,69.2820323027551,1.0,discrete
+ML-QAE,0.05,3072.0,0.0,1.0,discrete
+Classical MC,0.1,62.5,41.75823272122516,1.0,discrete
+ML-QAE,0.1,3072.0,0.0,1.0,discrete
