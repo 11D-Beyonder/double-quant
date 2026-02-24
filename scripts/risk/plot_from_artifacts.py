@@ -189,9 +189,14 @@ def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
         rc={"font.family": "Times New Roman"},
     )
     fig, ax = plt.subplots(figsize=(9, 5))
-    palette = {"Classical MC": "#377eb8", "ML-QAE": "#ff7f00"}
+    palette = {
+        "Classical MC": "#377eb8",
+        "IQAE": "#4daf4a",
+        "ML-QAE": "#ff7f00",
+        "FAE": "#e41a1c",
+    }
 
-    for method in ["Classical MC", "ML-QAE"]:
+    for method in ["Classical MC", "IQAE", "ML-QAE", "FAE"]:
         subset = df_summary[
             (df_summary["method"] == method) & (df_summary["mean_calls"].notna())
         ].sort_values(by="epsilon")
