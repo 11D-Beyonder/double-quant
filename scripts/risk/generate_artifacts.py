@@ -182,7 +182,7 @@ def _generate_quantum_comparison_snapshots(
         ("statevector", None, "statevector"),
         ("shots", QAEOptions(shots=1024), "shots(1024)"),
         ("shots", QAEOptions(shots=4096), "shots(4096)"),
-        ("qae_iqae", QAEOptions(epsilon=0.05, alpha=0.05), "qae_iqae"),
+        ("qae_iqae", QAEOptions(epsilon=0.01, alpha=0.01), "qae_iqae"),
         ("qae_mlqae", QAEOptions(num_eval_qubits=4), "qae_mlqae"),
         ("qae_fae", QAEOptions(delta=0.05, maxiter=5), "qae_fae"),
     ]
@@ -337,7 +337,11 @@ def _generate_equal_error_snapshot(
     n_players = 5
     n_l_quantum = 6
     classical_samples = [10, 20, 40, 80, 160, 320, 640, 1000, 2000, 5000, 10000, 20000]
-    mlqae_eval_qubits = [2, 3, 4, 5]
+    iqae_epsilons = [0.05, 0.03, 0.02, 0.01, 0.007, 0.005]
+    iqae_alpha = 0.01
+    mlqae_eval_qubits = [2, 3, 4, 5, 6]
+    fae_maxiters = [3, 4, 5, 6, 7]
+    fae_delta = 0.05
 
     buckets = divide_by_volatility(returns, [0.3, 0.7])
     low_assets, mid_assets, high_assets = buckets[0], buckets[1], buckets[2]
@@ -354,7 +358,12 @@ def _generate_equal_error_snapshot(
         vfunc = RiskSavingValueFunction(ret_sub)
         exact = BinaryEnumerationCalculator(n_players, vfunc).get_all()
 
-        points: dict[str, list[tuple[int, float]]] = {"Classical MC": [], "ML-QAE": []}
+        points: dict[str, list[tuple[int, float]]] = {
+            "Classical MC": [],
+            "IQAE": [],
+            "ML-QAE": [],
+            "FAE": [],
+        }
         for t in classical_samples:
             calc_mc = PermutationMCCalculator(
                 n_players, vfunc, num_samples=t, seed=round_idx * 1000 + t
@@ -362,6 +371,27 @@ def _generate_equal_error_snapshot(
             estimate = calc_mc.get_all()
             points["Classical MC"].append(
                 (calc_mc.get_oracle_count(0), _mean_relative_error(estimate, exact))
+            )
+
+        for target_epsilon in iqae_epsilons:
+            try:
+                calc_q = QuantumCalculator(
+                    n_players,
+                    vfunc,
+                    internal_qubits_num=n_l_quantum,
+                    internal_multiplier=1,
+                    extraction_mode="qae_iqae",
+                    options=QAEOptions(epsilon=target_epsilon, alpha=iqae_alpha),
+                )
+            except Exception:
+                continue
+
+            estimate = calc_q.get_all()
+            oracle_calls = calc_q.get_oracle_count(0)
+            if oracle_calls is None:
+                continue
+            points["IQAE"].append(
+                (max(1, oracle_calls), _mean_relative_error(estimate, exact))
             )
 
         for k in mlqae_eval_qubits:
@@ -378,12 +408,35 @@ def _generate_equal_error_snapshot(
                 continue
 
             estimate = calc_q.get_all()
-            oracle_calls = calc_q.get_oracle_count(0) or 1
+            oracle_calls = calc_q.get_oracle_count(0)
+            if oracle_calls is None:
+                continue
             points["ML-QAE"].append(
-                (oracle_calls, _mean_relative_error(estimate, exact))
+                (max(1, oracle_calls), _mean_relative_error(estimate, exact))
             )
 
-        for method in ["Classical MC", "ML-QAE"]:
+        for maxiter in fae_maxiters:
+            try:
+                calc_q = QuantumCalculator(
+                    n_players,
+                    vfunc,
+                    internal_qubits_num=n_l_quantum,
+                    internal_multiplier=1,
+                    extraction_mode="qae_fae",
+                    options=QAEOptions(delta=fae_delta, maxiter=maxiter),
+                )
+            except Exception:
+                continue
+
+            estimate = calc_q.get_all()
+            oracle_calls = calc_q.get_oracle_count(0)
+            if oracle_calls is None:
+                continue
+            points["FAE"].append(
+                (max(1, oracle_calls), _mean_relative_error(estimate, exact))
+            )
+
+        for method in ["Classical MC", "IQAE", "ML-QAE", "FAE"]:
             for epsilon in epsilons:
                 min_calls = _min_calls_reaching_epsilon(points[method], epsilon)
                 source_type = "discrete"
@@ -460,10 +513,30 @@ def main() -> None:
                 "n_rounds": 50,
                 "asset_sizes": [3, 4, 5, 6],
                 "qubit_range": [2, 3, 4, 5, 6],
+                "iqae_options": {"epsilon": 0.01, "alpha": 0.01},
             },
             "equal_error": {
                 "epsilons": [1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2, 1e-1],
                 "n_rounds": 8,
+                "classical_samples": [
+                    10,
+                    20,
+                    40,
+                    80,
+                    160,
+                    320,
+                    640,
+                    1000,
+                    2000,
+                    5000,
+                    10000,
+                    20000,
+                ],
+                "iqae_epsilons": [0.05, 0.03, 0.02, 0.01, 0.007, 0.005],
+                "iqae_alpha": 0.01,
+                "mlqae_eval_qubits": [2, 3, 4, 5, 6],
+                "fae_maxiters": [3, 4, 5, 6, 7],
+                "fae_delta": 0.05,
             },
         },
         source_data=str(dp.file_path),

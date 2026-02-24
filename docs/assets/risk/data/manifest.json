@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-23T08:09:13.509151+00:00",
+  "generated_at": "2026-02-24T03:41:32.010786+00:00",
   "params": {
     "force": false,
     "windows": {
@@ -20,7 +20,12 @@
         4,
         5,
         6
-      ]
+      ],
+      "iqae_options": {
+        "epsilon": 0.01,
+        "alpha": 0.01,
+        "sampler_seed": 2028
+      }
     },
     "equal_error": {
       "epsilons": [
@@ -32,7 +37,46 @@
         0.05,
         0.1
       ],
-      "n_rounds": 8
+      "n_rounds": 24,
+      "classical_samples": [
+        10,
+        20,
+        40,
+        80,
+        160,
+        320,
+        640,
+        1000,
+        2000,
+        5000,
+        10000,
+        20000
+      ],
+      "iqae_epsilons": [
+        0.05,
+        0.03,
+        0.02,
+        0.01,
+        0.007,
+        0.005
+      ],
+      "iqae_alpha": 0.01,
+      "mlqae_eval_qubits": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "fae_maxiters": [
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fae_delta": 0.05,
+      "qae_sampler_seed_base": 2028
     }
   },
   "source_data": "tests/double_quant/application/cache/experiment_data_clean.csv"
