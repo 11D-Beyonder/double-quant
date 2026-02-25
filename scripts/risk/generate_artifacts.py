@@ -1,24 +1,14 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 from typing import Literal
 
 import numpy as np
 import pandas as pd
 
 from double_quant.application.risk import RiskAttributor, RiskSavingValueFunction
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
-
-from experiments.risk.artifacts import (
-    DataPreparation,
-    get_artifact_paths,
-    write_manifest,
-)
 from double_quant.common.util import divide_by_volatility
 from double_quant.solver.shapley import (
     BinaryEnumerationCalculator,
@@ -26,6 +16,15 @@ from double_quant.solver.shapley import (
     QAEOptions,
     QuantumCalculator,
 )
+from experiments.risk.artifacts import (
+    DataPreparation,
+    get_artifact_paths,
+    write_manifest,
+)
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 
 def _needs_refresh(paths: list[Path], force: bool) -> bool:

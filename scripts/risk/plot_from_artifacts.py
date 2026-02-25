@@ -185,15 +185,28 @@ def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
     sns.set_theme(
         style="whitegrid",
         context="paper",
-        font_scale=1.8,
-        rc={"font.family": "Times New Roman"},
+        font_scale=1.5,
+        rc={
+            "font.family": "serif",
+            "font.serif": ["Times New Roman"],
+            "mathtext.fontset": "stix",
+            "axes.grid": True,
+            "grid.linestyle": "--",
+            "grid.alpha": 0.4,
+        },
     )
-    fig, ax = plt.subplots(figsize=(9, 5))
+    fig, ax = plt.subplots(figsize=(8, 5))
     palette = {
         "Classical MC": "#377eb8",
         "IQAE": "#4daf4a",
         "ML-QAE": "#ff7f00",
         "FAE": "#e41a1c",
+    }
+    markers = {
+        "Classical MC": "o",
+        "IQAE": "s",
+        "ML-QAE": "^",
+        "FAE": "D",
     }
 
     for method in ["Classical MC", "IQAE", "ML-QAE", "FAE"]:
@@ -207,24 +220,31 @@ def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
             subset["epsilon"],
             subset["mean_calls"],
             yerr=subset["std_calls"].fillna(0.0),
-            marker="o",
+            marker=markers.get(method, "o"),
+            markersize=6,
             label=method,
             color=palette.get(method, "gray"),
-            linewidth=2,
+            linewidth=1.5,
             capsize=3,
+            elinewidth=1.5,
         )
 
-    ax.set_title("Equal-Error Oracle Calls (Fixed Grid + Fallback)", fontsize=12)
-    ax.set_xlabel("Target Relative Error (epsilon)")
-    ax.set_ylabel("Oracle Calls to Reach epsilon")
+    ax.set_title(
+        "Equal-Error Oracle Calls (Fixed Grid + Fallback)", fontsize=14, pad=10
+    )
+    ax.set_xlabel(r"Target Relative Error ($\epsilon$)", fontsize=12)
+    ax.set_ylabel(r"Oracle Calls to Reach $\epsilon$", fontsize=12)
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.grid(True, linestyle="--", alpha=0.5)
-    ax.legend(loc="best", fontsize=11)
+    ax.grid(True, which="major", linestyle="--", alpha=0.4)
+    ax.grid(True, which="minor", linestyle=":", alpha=0.2)
+    ax.legend(
+        loc="best", fontsize=10, frameon=True, framealpha=0.9, edgecolor="#cccccc"
+    )
 
     plt.tight_layout()
     out_path = f"{figure_dir}/equal_error_oracle_calls_fixed_grid_fallback.png"
-    plt.savefig(out_path)
+    plt.savefig(out_path, dpi=300, bbox_inches="tight")
     print(f"Saved {out_path}")
 
 
