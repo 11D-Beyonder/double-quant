@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from matplotlib.lines import Line2D
 from pathlib import Path
 import sys
 
@@ -143,40 +144,126 @@ def _plot_restoration_accuracy(snapshot_dir: str, figure_dir: str) -> None:
 
 
 def _plot_quantum_comparison(snapshot_dir: str, figure_dir: str) -> None:
+    sns.set_theme(
+        style="whitegrid",
+        context="paper",
+        font_scale=1.5,
+        rc={
+            "font.family": "serif",
+            "font.serif": ["Times New Roman"],
+            "mathtext.fontset": "stix",
+            "axes.grid": True,
+            "grid.linestyle": "--",
+            "grid.alpha": 0.4,
+        },
+    )
+
     asset_sizes = [3, 4, 5, 6]
+    markers_cycle = ["o", "s", "^", "D", "v", "<", ">", "p"]
+
+    frames_by_n: dict[int, pd.DataFrame] = {}
+    method_set: set[str] = set()
+
     for n in asset_sizes:
-        df = pd.read_csv(f"{snapshot_dir}/quantum_comparison_n{n}.csv")
-        methods = df["method"].unique().tolist()
-        palette = dict(zip(methods, sns.color_palette("husl", len(methods))))
+        frame = pd.read_csv(f"{snapshot_dir}/quantum_comparison_n{n}.csv")
+        frames_by_n[n] = frame
+        method_set.update(frame["method"].dropna().astype(str).unique().tolist())
 
-        sns.set_theme(
-            style="whitegrid",
-            context="paper",
-            font_scale=1.8,
-            rc={"font.family": "Times New Roman"},
-        )
-        _, ax = plt.subplots(figsize=(8, 5))
+    methods = sorted(method_set)
+    palette = dict(zip(methods, sns.color_palette("colorblind", len(methods))))
+    marker_map = {
+        method: markers_cycle[idx % len(markers_cycle)]
+        for idx, method in enumerate(methods)
+    }
 
-        for label in methods:
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey=False)
+    for idx, n in enumerate(asset_sizes):
+        row_idx, col_idx = divmod(idx, 2)
+        ax = axes[row_idx, col_idx]
+        df = frames_by_n[n]
+        panel_values = np.asarray(df["rel_error"], dtype=float)
+        finite_panel_values = panel_values[np.isfinite(panel_values)]
+        if finite_panel_values.size == 0:
+            raise ValueError(f"No finite rel_error values for n={n}")
+
+        local_min = float(np.min(finite_panel_values))
+        local_max = float(np.max(finite_panel_values))
+        if np.isclose(local_min, local_max):
+            local_pad = max(abs(local_min) * 0.05, 1e-6)
+        else:
+            local_pad = 0.05 * (local_max - local_min)
+
+        method_labels = df["method"].astype(str)
+        methods_in_plot = [
+            method for method in methods if (method_labels == method).any()
+        ]
+
+        for label in methods_in_plot:
             subset = df[df["method"] == label]
-            ax.plot(
-                subset["n_l"],
-                subset["rel_error"],
-                marker="o",
-                label=label,
-                color=palette[label],
-                linewidth=2,
-            )
+            x_vals = np.asarray(subset["n_l"])
+            y_vals = np.asarray(subset["rel_error"])
+            order = np.argsort(x_vals)
+            plot_kwargs = {
+                "marker": marker_map[label],
+                "linestyle": "-",
+                "label": label,
+                "color": palette[label],
+                "linewidth": 2,
+                "markersize": 7,
+                "markerfacecolor": "white",
+                "markeredgewidth": 1.2,
+            }
+            ax.plot(x_vals[order], y_vals[order], **plot_kwargs)
 
-        ax.set_xlabel(r"Interval Register Qubits ($n_l$)")
-        ax.set_ylabel("Mean Relative Error")
-        ax.legend(loc="upper right", fontsize=10)
-        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.set_title(f"n = {n} (local y-scale)", fontsize=12)
+        ax.set_ylim(local_min - local_pad, local_max + local_pad)
+        ax.tick_params(axis="both", labelsize=11)
+        ax.grid(True, which="major", linestyle="--", alpha=0.4)
+        ax.grid(True, which="minor", linestyle=":", alpha=0.2)
+        ax.minorticks_on()
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
 
-        plt.tight_layout()
-        out_path = f"{figure_dir}/quantum_comparison_n{n}.png"
-        plt.savefig(out_path)
-        print(f"Saved {out_path}")
+        if row_idx == 1:
+            ax.set_xlabel(r"Interval Register Qubits ($n_l$)", fontsize=12)
+        else:
+            ax.set_xlabel("")
+        if col_idx == 0:
+            ax.set_ylabel("Mean Relative Error", fontsize=12)
+        else:
+            ax.set_ylabel("")
+
+    legend_handles = [
+        Line2D(
+            [0],
+            [0],
+            color=palette[method],
+            marker=marker_map[method],
+            linestyle="-",
+            linewidth=2,
+            markersize=7,
+            markerfacecolor="white",
+            markeredgewidth=1.2,
+            label=method,
+        )
+        for method in methods
+    ]
+    fig.legend(
+        handles=legend_handles,
+        loc="lower center",
+        ncol=min(3, len(methods)),
+        fontsize=10,
+        frameon=True,
+        framealpha=0.92,
+        edgecolor="#cccccc",
+        bbox_to_anchor=(0.5, 0.01),
+    )
+
+    fig.tight_layout(rect=(0.0, 0.08, 1.0, 1.0))
+    out_path = f"{figure_dir}/quantum_comparison_grid.png"
+    fig.savefig(out_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved {out_path}")
 
 
 def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
