@@ -1,24 +1,14 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 from typing import Literal
 
 import numpy as np
 import pandas as pd
 
 from double_quant.application.risk import RiskAttributor, RiskSavingValueFunction
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
-
-from experiments.risk.artifacts import (
-    DataPreparation,
-    get_artifact_paths,
-    write_manifest,
-)
 from double_quant.common.util import divide_by_volatility
 from double_quant.solver.shapley import (
     BinaryEnumerationCalculator,
@@ -26,6 +16,15 @@ from double_quant.solver.shapley import (
     QAEOptions,
     QuantumCalculator,
 )
+from experiments.risk.artifacts import (
+    DataPreparation,
+    get_artifact_paths,
+    write_manifest,
+)
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 
 def _needs_refresh(paths: list[Path], force: bool) -> bool:
@@ -179,12 +178,12 @@ def _generate_quantum_comparison_snapshots(
             str,
         ]
     ] = [
-        ("statevector", None, "statevector"),
-        ("shots", QAEOptions(shots=1024), "shots(1024)"),
-        ("shots", QAEOptions(shots=4096), "shots(4096)"),
-        ("qae_iqae", QAEOptions(epsilon=0.01, alpha=0.01), "qae_iqae"),
-        ("qae_mlqae", QAEOptions(num_eval_qubits=4), "qae_mlqae"),
-        ("qae_fae", QAEOptions(delta=0.05, maxiter=5), "qae_fae"),
+        ("statevector", None, "Statevector"),
+        ("shots", QAEOptions(shots=1024), "shots=1024"),
+        ("shots", QAEOptions(shots=4096), "shots=4096"),
+        ("qae_iqae", QAEOptions(epsilon=0.01, alpha=0.01), "I-QAE"),
+        ("qae_mlqae", QAEOptions(num_eval_qubits=4), "ML-QAE"),
+        ("qae_fae", QAEOptions(delta=0.05, maxiter=5), "F-QAE"),
     ]
 
     target_files = [snapshot_dir / f"quantum_comparison_n{n}.csv" for n in asset_sizes]
@@ -360,9 +359,9 @@ def _generate_equal_error_snapshot(
 
         points: dict[str, list[tuple[int, float]]] = {
             "Classical MC": [],
-            "IQAE": [],
+            "I-QAE": [],
             "ML-QAE": [],
-            "FAE": [],
+            "F-QAE": [],
         }
         for t in classical_samples:
             calc_mc = PermutationMCCalculator(
@@ -390,7 +389,7 @@ def _generate_equal_error_snapshot(
             oracle_calls = calc_q.get_oracle_count(0)
             if oracle_calls is None:
                 continue
-            points["IQAE"].append(
+            points["I-QAE"].append(
                 (max(1, oracle_calls), _mean_relative_error(estimate, exact))
             )
 
@@ -432,11 +431,11 @@ def _generate_equal_error_snapshot(
             oracle_calls = calc_q.get_oracle_count(0)
             if oracle_calls is None:
                 continue
-            points["FAE"].append(
+            points["F-QAE"].append(
                 (max(1, oracle_calls), _mean_relative_error(estimate, exact))
             )
 
-        for method in ["Classical MC", "IQAE", "ML-QAE", "FAE"]:
+        for method in ["Classical MC", "I-QAE", "ML-QAE", "F-QAE"]:
             for epsilon in epsilons:
                 min_calls = _min_calls_reaching_epsilon(points[method], epsilon)
                 source_type = "discrete"

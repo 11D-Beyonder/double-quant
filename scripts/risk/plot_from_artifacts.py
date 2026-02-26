@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from matplotlib.lines import Line2D
 from pathlib import Path
 import sys
 
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
@@ -18,6 +20,34 @@ from experiments.risk.artifacts import (
     get_artifact_paths,
     require_snapshot_files,
 )
+
+
+QUANTUM_METHOD_ORDER = [
+    "shots=1024",
+    "shots=4096",
+    "I-QAE",
+    "F-QAE",
+    "ML-QAE",
+    "Statevector",
+]
+
+QUANTUM_METHOD_ALIASES = {
+    "shots(1024)": "shots=1024",
+    "shots(4096)": "shots=4096",
+    "qae_iqae": "I-QAE",
+    "qae_fae": "F-QAE",
+    "qae_mlqae": "ML-QAE",
+    "statevector": "Statevector",
+}
+
+QUANTUM_METHOD_COLORS = {
+    "shots=1024": "#4C78A8",
+    "shots=4096": "#9C755F",
+    "I-QAE": "#F58518",
+    "F-QAE": "#E45756",
+    "ML-QAE": "#54A24B",
+    "Statevector": "#7E57C2",
+}
 
 
 def _plot_volatility_trend(snapshot_dir: str, figure_dir: str) -> None:
@@ -143,60 +173,181 @@ def _plot_restoration_accuracy(snapshot_dir: str, figure_dir: str) -> None:
 
 
 def _plot_quantum_comparison(snapshot_dir: str, figure_dir: str) -> None:
+    sns.set_theme(
+        style="whitegrid",
+        context="paper",
+        font_scale=1.5,
+        rc={
+            "font.family": "serif",
+            "font.serif": ["Times New Roman"],
+            "mathtext.fontset": "stix",
+            "axes.grid": True,
+            "grid.linestyle": "--",
+            "grid.alpha": 0.4,
+        },
+    )
+
     asset_sizes = [3, 4, 5, 6]
+    markers_cycle = ["o", "s", "^", "D", "v", "<", ">", "p"]
+
+    frames_by_n: dict[int, pd.DataFrame] = {}
+    method_set: set[str] = set()
+
     for n in asset_sizes:
-        df = pd.read_csv(f"{snapshot_dir}/quantum_comparison_n{n}.csv")
-        methods = df["method"].unique().tolist()
-        palette = dict(zip(methods, sns.color_palette("husl", len(methods))))
-
-        sns.set_theme(
-            style="whitegrid",
-            context="paper",
-            font_scale=1.8,
-            rc={"font.family": "Times New Roman"},
+        frame = pd.read_csv(f"{snapshot_dir}/quantum_comparison_n{n}.csv").copy()
+        frame["method"] = (
+            frame["method"]
+            .astype(str)
+            .map(lambda method: QUANTUM_METHOD_ALIASES.get(method, method))
         )
-        _, ax = plt.subplots(figsize=(8, 5))
+        frames_by_n[n] = frame
+        method_set.update(frame["method"].dropna().astype(str).unique().tolist())
 
-        for label in methods:
+    methods = [method for method in QUANTUM_METHOD_ORDER if method in method_set]
+    extra_methods = sorted(method_set.difference(methods))
+    methods.extend(extra_methods)
+
+    palette: dict[str, str | tuple[float, float, float]] = {
+        method: QUANTUM_METHOD_COLORS[method]
+        for method in methods
+        if method in QUANTUM_METHOD_COLORS
+    }
+    if extra_methods:
+        extra_palette = sns.color_palette("tab10", len(extra_methods))
+        for method, color in zip(extra_methods, extra_palette):
+            palette[method] = color
+
+    marker_map = {
+        method: markers_cycle[idx % len(markers_cycle)]
+        for idx, method in enumerate(methods)
+    }
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey=False)
+    for idx, n in enumerate(asset_sizes):
+        row_idx, col_idx = divmod(idx, 2)
+        ax = axes[row_idx, col_idx]
+        df = frames_by_n[n]
+        panel_values = np.asarray(df["rel_error"], dtype=float)
+        finite_panel_values = panel_values[np.isfinite(panel_values)]
+        if finite_panel_values.size == 0:
+            raise ValueError(f"No finite rel_error values for n={n}")
+
+        local_min = float(np.min(finite_panel_values))
+        local_max = float(np.max(finite_panel_values))
+        if np.isclose(local_min, local_max):
+            local_pad = max(abs(local_min) * 0.05, 1e-6)
+        else:
+            local_pad = 0.05 * (local_max - local_min)
+
+        method_labels = df["method"].astype(str)
+        methods_in_plot = [
+            method for method in methods if (method_labels == method).any()
+        ]
+
+        for label in methods_in_plot:
             subset = df[df["method"] == label]
-            ax.plot(
-                subset["n_l"],
-                subset["rel_error"],
-                marker="o",
-                label=label,
-                color=palette[label],
-                linewidth=2,
-            )
+            x_vals = np.asarray(subset["n_l"])
+            y_vals = np.asarray(subset["rel_error"])
+            order = np.argsort(x_vals)
+            plot_kwargs = {
+                "marker": marker_map[label],
+                "linestyle": "-",
+                "label": label,
+                "color": palette[label],
+                "linewidth": 2,
+                "markersize": 7,
+                "markerfacecolor": "white",
+                "markeredgewidth": 1.2,
+            }
+            ax.plot(x_vals[order], y_vals[order], **plot_kwargs)
 
-        ax.set_xlabel(r"Interval Register Qubits ($n_l$)")
-        ax.set_ylabel("Mean Relative Error")
-        ax.legend(loc="upper right", fontsize=10)
-        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.set_title(f"n = {n} (local y-scale)", fontsize=12)
+        ax.set_ylim(local_min - local_pad, local_max + local_pad)
+        ax.tick_params(axis="both", labelsize=11)
+        ax.grid(True, which="major", linestyle="--", alpha=0.4)
+        ax.grid(True, which="minor", linestyle=":", alpha=0.2)
+        ax.minorticks_on()
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
 
-        plt.tight_layout()
-        out_path = f"{figure_dir}/quantum_comparison_n{n}.png"
-        plt.savefig(out_path)
-        print(f"Saved {out_path}")
+        if row_idx == 1:
+            ax.set_xlabel(r"Interval Register Qubits ($n_l$)", fontsize=12)
+        else:
+            ax.set_xlabel("")
+        if col_idx == 0:
+            ax.set_ylabel("Mean Relative Error", fontsize=12)
+        else:
+            ax.set_ylabel("")
+
+    legend_handles = [
+        Line2D(
+            [0],
+            [0],
+            color=palette[method],
+            marker=marker_map[method],
+            linestyle="-",
+            linewidth=2,
+            markersize=7,
+            markerfacecolor="white",
+            markeredgewidth=1.2,
+            label=method,
+        )
+        for method in methods
+    ]
+    legend_ncol = max(1, len(methods))
+    fig.legend(
+        handles=legend_handles,
+        loc="lower center",
+        ncol=legend_ncol,
+        fontsize=10,
+        frameon=True,
+        framealpha=0.92,
+        edgecolor="#cccccc",
+        bbox_to_anchor=(0.5, 0.01),
+    )
+
+    fig.tight_layout(rect=(0.0, 0.08, 1.0, 1.0))
+    out_path = f"{figure_dir}/quantum_comparison_grid.png"
+    fig.savefig(out_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved {out_path}")
 
 
 def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
     df_summary = pd.read_csv(f"{snapshot_dir}/equal_error_oracle_calls_summary.csv")
+    df_summary = df_summary.copy()
+    df_summary["method"] = df_summary["method"].replace(
+        {"IQAE": "I-QAE", "FAE": "F-QAE"}
+    )
 
     sns.set_theme(
         style="whitegrid",
         context="paper",
-        font_scale=1.8,
-        rc={"font.family": "Times New Roman"},
+        font_scale=1.5,
+        rc={
+            "font.family": "serif",
+            "font.serif": ["Times New Roman"],
+            "mathtext.fontset": "stix",
+            "axes.grid": True,
+            "grid.linestyle": "--",
+            "grid.alpha": 0.4,
+        },
     )
-    fig, ax = plt.subplots(figsize=(9, 5))
+    fig, ax = plt.subplots(figsize=(8, 5))
     palette = {
         "Classical MC": "#377eb8",
-        "IQAE": "#4daf4a",
+        "I-QAE": "#4daf4a",
         "ML-QAE": "#ff7f00",
-        "FAE": "#e41a1c",
+        "F-QAE": "#e41a1c",
+    }
+    markers = {
+        "Classical MC": "o",
+        "I-QAE": "s",
+        "ML-QAE": "^",
+        "F-QAE": "D",
     }
 
-    for method in ["Classical MC", "IQAE", "ML-QAE", "FAE"]:
+    for method in ["Classical MC", "I-QAE", "ML-QAE", "F-QAE"]:
         subset = df_summary[
             (df_summary["method"] == method) & (df_summary["mean_calls"].notna())
         ].sort_values(by="epsilon")
@@ -207,24 +358,45 @@ def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
             subset["epsilon"],
             subset["mean_calls"],
             yerr=subset["std_calls"].fillna(0.0),
-            marker="o",
+            marker=markers.get(method, "o"),
+            markersize=6,
             label=method,
             color=palette.get(method, "gray"),
-            linewidth=2,
+            linewidth=1.5,
             capsize=3,
+            elinewidth=1.5,
         )
 
-    ax.set_title("Equal-Error Oracle Calls (Fixed Grid + Fallback)", fontsize=12)
-    ax.set_xlabel("Target Relative Error (epsilon)")
-    ax.set_ylabel("Oracle Calls to Reach epsilon")
+    def _log10_exponent_formatter(value: float, _position: int) -> str:
+        if not np.isfinite(value) or value <= 0:
+            return ""
+        exponent = np.log10(value)
+        if np.isclose(exponent, round(exponent), atol=1e-10):
+            return f"{int(round(exponent))}"
+        return ""
+
+    ax.set_title(
+        "Equal-Error Oracle Calls (Fixed Grid + Fallback)", fontsize=14, pad=10
+    )
+    ax.set_xlabel(r"Target Relative Error ($\log_{10}\epsilon$)", fontsize=12)
+    ax.set_ylabel(r"Oracle Calls to Reach $\epsilon$ ($\log_{10}$ scale)", fontsize=12)
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.grid(True, linestyle="--", alpha=0.5)
-    ax.legend(loc="best", fontsize=11)
+    ax.xaxis.set_major_locator(LogLocator(base=10.0))
+    ax.xaxis.set_major_formatter(FuncFormatter(_log10_exponent_formatter))
+    ax.xaxis.set_minor_formatter(NullFormatter())
+    ax.yaxis.set_major_locator(LogLocator(base=10.0))
+    ax.yaxis.set_major_formatter(FuncFormatter(_log10_exponent_formatter))
+    ax.yaxis.set_minor_formatter(NullFormatter())
+    ax.grid(True, which="major", linestyle="--", alpha=0.4)
+    ax.grid(True, which="minor", linestyle=":", alpha=0.2)
+    ax.legend(
+        loc="best", fontsize=10, frameon=True, framealpha=0.9, edgecolor="#cccccc"
+    )
 
     plt.tight_layout()
     out_path = f"{figure_dir}/equal_error_oracle_calls_fixed_grid_fallback.png"
-    plt.savefig(out_path)
+    plt.savefig(out_path, dpi=300, bbox_inches="tight")
     print(f"Saved {out_path}")
 
 
