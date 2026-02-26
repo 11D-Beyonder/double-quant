@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
@@ -19,6 +20,34 @@ from experiments.risk.artifacts import (
     get_artifact_paths,
     require_snapshot_files,
 )
+
+
+QUANTUM_METHOD_ORDER = [
+    "shots=1024",
+    "shots=4096",
+    "I-QAE",
+    "F-QAE",
+    "ML-QAE",
+    "Statevector",
+]
+
+QUANTUM_METHOD_ALIASES = {
+    "shots(1024)": "shots=1024",
+    "shots(4096)": "shots=4096",
+    "qae_iqae": "I-QAE",
+    "qae_fae": "F-QAE",
+    "qae_mlqae": "ML-QAE",
+    "statevector": "Statevector",
+}
+
+QUANTUM_METHOD_COLORS = {
+    "shots=1024": "#4C78A8",
+    "shots=4096": "#9C755F",
+    "I-QAE": "#F58518",
+    "F-QAE": "#E45756",
+    "ML-QAE": "#54A24B",
+    "Statevector": "#7E57C2",
+}
 
 
 def _plot_volatility_trend(snapshot_dir: str, figure_dir: str) -> None:
@@ -165,12 +194,29 @@ def _plot_quantum_comparison(snapshot_dir: str, figure_dir: str) -> None:
     method_set: set[str] = set()
 
     for n in asset_sizes:
-        frame = pd.read_csv(f"{snapshot_dir}/quantum_comparison_n{n}.csv")
+        frame = pd.read_csv(f"{snapshot_dir}/quantum_comparison_n{n}.csv").copy()
+        frame["method"] = (
+            frame["method"]
+            .astype(str)
+            .map(lambda method: QUANTUM_METHOD_ALIASES.get(method, method))
+        )
         frames_by_n[n] = frame
         method_set.update(frame["method"].dropna().astype(str).unique().tolist())
 
-    methods = sorted(method_set)
-    palette = dict(zip(methods, sns.color_palette("colorblind", len(methods))))
+    methods = [method for method in QUANTUM_METHOD_ORDER if method in method_set]
+    extra_methods = sorted(method_set.difference(methods))
+    methods.extend(extra_methods)
+
+    palette: dict[str, str | tuple[float, float, float]] = {
+        method: QUANTUM_METHOD_COLORS[method]
+        for method in methods
+        if method in QUANTUM_METHOD_COLORS
+    }
+    if extra_methods:
+        extra_palette = sns.color_palette("tab10", len(extra_methods))
+        for method, color in zip(extra_methods, extra_palette):
+            palette[method] = color
+
     marker_map = {
         method: markers_cycle[idx % len(markers_cycle)]
         for idx, method in enumerate(methods)
@@ -248,10 +294,11 @@ def _plot_quantum_comparison(snapshot_dir: str, figure_dir: str) -> None:
         )
         for method in methods
     ]
+    legend_ncol = max(1, len(methods))
     fig.legend(
         handles=legend_handles,
         loc="lower center",
-        ncol=min(3, len(methods)),
+        ncol=legend_ncol,
         fontsize=10,
         frameon=True,
         framealpha=0.92,
@@ -268,6 +315,10 @@ def _plot_quantum_comparison(snapshot_dir: str, figure_dir: str) -> None:
 
 def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
     df_summary = pd.read_csv(f"{snapshot_dir}/equal_error_oracle_calls_summary.csv")
+    df_summary = df_summary.copy()
+    df_summary["method"] = df_summary["method"].replace(
+        {"IQAE": "I-QAE", "FAE": "F-QAE"}
+    )
 
     sns.set_theme(
         style="whitegrid",
@@ -285,18 +336,18 @@ def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
     fig, ax = plt.subplots(figsize=(8, 5))
     palette = {
         "Classical MC": "#377eb8",
-        "IQAE": "#4daf4a",
+        "I-QAE": "#4daf4a",
         "ML-QAE": "#ff7f00",
-        "FAE": "#e41a1c",
+        "F-QAE": "#e41a1c",
     }
     markers = {
         "Classical MC": "o",
-        "IQAE": "s",
+        "I-QAE": "s",
         "ML-QAE": "^",
-        "FAE": "D",
+        "F-QAE": "D",
     }
 
-    for method in ["Classical MC", "IQAE", "ML-QAE", "FAE"]:
+    for method in ["Classical MC", "I-QAE", "ML-QAE", "F-QAE"]:
         subset = df_summary[
             (df_summary["method"] == method) & (df_summary["mean_calls"].notna())
         ].sort_values(by="epsilon")
@@ -316,13 +367,27 @@ def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
             elinewidth=1.5,
         )
 
+    def _log10_exponent_formatter(value: float, _position: int) -> str:
+        if not np.isfinite(value) or value <= 0:
+            return ""
+        exponent = np.log10(value)
+        if np.isclose(exponent, round(exponent), atol=1e-10):
+            return f"{int(round(exponent))}"
+        return ""
+
     ax.set_title(
         "Equal-Error Oracle Calls (Fixed Grid + Fallback)", fontsize=14, pad=10
     )
-    ax.set_xlabel(r"Target Relative Error ($\epsilon$)", fontsize=12)
-    ax.set_ylabel(r"Oracle Calls to Reach $\epsilon$", fontsize=12)
+    ax.set_xlabel(r"Target Relative Error ($\log_{10}\epsilon$)", fontsize=12)
+    ax.set_ylabel(r"Oracle Calls to Reach $\epsilon$ ($\log_{10}$ scale)", fontsize=12)
     ax.set_xscale("log")
     ax.set_yscale("log")
+    ax.xaxis.set_major_locator(LogLocator(base=10.0))
+    ax.xaxis.set_major_formatter(FuncFormatter(_log10_exponent_formatter))
+    ax.xaxis.set_minor_formatter(NullFormatter())
+    ax.yaxis.set_major_locator(LogLocator(base=10.0))
+    ax.yaxis.set_major_formatter(FuncFormatter(_log10_exponent_formatter))
+    ax.yaxis.set_minor_formatter(NullFormatter())
     ax.grid(True, which="major", linestyle="--", alpha=0.4)
     ax.grid(True, which="minor", linestyle=":", alpha=0.2)
     ax.legend(
