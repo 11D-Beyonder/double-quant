@@ -68,3 +68,13 @@ def test_artifact_module_has_no_legacy_cache_fallback():
     assert (
         "tests/double_quant/application/data/experiment_data_clean.csv" not in content
     )
+
+
+def test_quantum_comparison_method_labels_use_display_names():
+    content = Path("scripts/risk/generate_artifacts.py").read_text()
+    assert '"shots=1024"' in content
+    assert '"shots=4096"' in content
+    assert '"I-QAE"' in content
+    assert '"F-QAE"' in content
+    assert '"ML-QAE"' in content
+    assert '"Statevector"' in content

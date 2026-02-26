@@ -178,12 +178,12 @@ def _generate_quantum_comparison_snapshots(
             str,
         ]
     ] = [
-        ("statevector", None, "statevector"),
-        ("shots", QAEOptions(shots=1024), "shots(1024)"),
-        ("shots", QAEOptions(shots=4096), "shots(4096)"),
-        ("qae_iqae", QAEOptions(epsilon=0.01, alpha=0.01), "qae_iqae"),
-        ("qae_mlqae", QAEOptions(num_eval_qubits=4), "qae_mlqae"),
-        ("qae_fae", QAEOptions(delta=0.05, maxiter=5), "qae_fae"),
+        ("statevector", None, "Statevector"),
+        ("shots", QAEOptions(shots=1024), "shots=1024"),
+        ("shots", QAEOptions(shots=4096), "shots=4096"),
+        ("qae_iqae", QAEOptions(epsilon=0.01, alpha=0.01), "I-QAE"),
+        ("qae_mlqae", QAEOptions(num_eval_qubits=4), "ML-QAE"),
+        ("qae_fae", QAEOptions(delta=0.05, maxiter=5), "F-QAE"),
     ]
 
     target_files = [snapshot_dir / f"quantum_comparison_n{n}.csv" for n in asset_sizes]
@@ -359,9 +359,9 @@ def _generate_equal_error_snapshot(
 
         points: dict[str, list[tuple[int, float]]] = {
             "Classical MC": [],
-            "IQAE": [],
+            "I-QAE": [],
             "ML-QAE": [],
-            "FAE": [],
+            "F-QAE": [],
         }
         for t in classical_samples:
             calc_mc = PermutationMCCalculator(
@@ -389,7 +389,7 @@ def _generate_equal_error_snapshot(
             oracle_calls = calc_q.get_oracle_count(0)
             if oracle_calls is None:
                 continue
-            points["IQAE"].append(
+            points["I-QAE"].append(
                 (max(1, oracle_calls), _mean_relative_error(estimate, exact))
             )
 
@@ -431,11 +431,11 @@ def _generate_equal_error_snapshot(
             oracle_calls = calc_q.get_oracle_count(0)
             if oracle_calls is None:
                 continue
-            points["FAE"].append(
+            points["F-QAE"].append(
                 (max(1, oracle_calls), _mean_relative_error(estimate, exact))
             )
 
-        for method in ["Classical MC", "IQAE", "ML-QAE", "FAE"]:
+        for method in ["Classical MC", "I-QAE", "ML-QAE", "F-QAE"]:
             for epsilon in epsilons:
                 min_calls = _min_calls_reaching_epsilon(points[method], epsilon)
                 source_type = "discrete"
