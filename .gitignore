@@ -16,6 +16,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 uv.lock
+.ruff_cache/
 
 # Claude Code
 .claude/

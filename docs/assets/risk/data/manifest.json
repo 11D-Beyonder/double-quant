@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-02-24T03:41:32.010786+00:00",
+  "generated_at": "2026-02-26T18:10:56.010099+00:00",
   "params": {
-    "force": false,
+    "force": true,
     "windows": {
       "start": "2020-04-01",
       "end": "2022-04-01"
@@ -23,8 +23,7 @@
       ],
       "iqae_options": {
         "epsilon": 0.01,
-        "alpha": 0.01,
-        "sampler_seed": 2028
+        "alpha": 0.01
       }
     },
     "equal_error": {
@@ -37,7 +36,7 @@
         0.05,
         0.1
       ],
-      "n_rounds": 24,
+      "n_rounds": 8,
       "classical_samples": [
         10,
         20,
@@ -75,8 +74,28 @@
         6,
         7
       ],
-      "fae_delta": 0.05,
-      "qae_sampler_seed_base": 2028
+      "fae_delta": 0.05
+    },
+    "empirical_cases": {
+      "hidden_risk": {
+        "portfolio_size": 10,
+        "target_high_asset": "TSLA",
+        "low_assets_count": 9
+      },
+      "hedge_negative": {
+        "target_risk_asset": "TSLA",
+        "preferred_hedges": [
+          "TLT",
+          "IEF",
+          "GOVT",
+          "SHY",
+          "GLD"
+        ],
+        "portfolio_weights": [
+          0.5,
+          0.5
+        ]
+      }
     }
   },
   "source_data": "tests/double_quant/application/cache/experiment_data_clean.csv"

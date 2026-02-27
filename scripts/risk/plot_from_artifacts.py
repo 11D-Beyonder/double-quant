@@ -400,6 +400,91 @@ def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
     print(f"Saved {out_path}")
 
 
+def _plot_empirical_cases(snapshot_dir: str, figure_dir: str) -> None:
+    hidden_df = pd.read_csv(f"{snapshot_dir}/empirical_hidden_risk.csv")
+    hedge_df = pd.read_csv(f"{snapshot_dir}/empirical_hedge_negative.csv")
+
+    sns.set_theme(
+        style="whitegrid",
+        context="paper",
+        font_scale=1.4,
+        rc={
+            "font.family": "serif",
+            "font.serif": ["Times New Roman"],
+            "mathtext.fontset": "stix",
+        },
+    )
+
+    hidden_plot = hidden_df.sort_values("src_share", ascending=False).reset_index(
+        drop=True
+    )
+    x = np.arange(len(hidden_plot))
+    width = 0.42
+    fig, ax = plt.subplots(figsize=(10, 4.8))
+    ax.bar(
+        x - width / 2,
+        hidden_plot["capital_weight"] * 100,
+        width=width,
+        label="Capital Weight (%)",
+        color="#6BAED6",
+    )
+    risk_colors = [
+        "#E45756" if tier == "High" else "#4C78A8" for tier in hidden_plot["risk_tier"]
+    ]
+    ax.bar(
+        x + width / 2,
+        hidden_plot["src_share"] * 100,
+        width=width,
+        label="SRC Share (%)",
+        color=risk_colors,
+    )
+    ax.set_xticks(x)
+    ax.set_xticklabels(hidden_plot["asset"], rotation=45, ha="right")
+    ax.set_ylabel("Percent (%)")
+    ax.set_title("Scenario A: Hidden Risk (Capital Share vs SRC Share)")
+    ax.legend(loc="upper right", frameon=True, framealpha=0.9)
+    ax.grid(True, axis="y", linestyle="--", alpha=0.4)
+    plt.tight_layout()
+    hidden_path = f"{figure_dir}/empirical_hidden_risk.png"
+    fig.savefig(hidden_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved {hidden_path}")
+
+    hedge_plot = hedge_df.copy()
+    x = np.arange(len(hedge_plot))
+    width = 0.36
+    fig, ax = plt.subplots(figsize=(7.2, 4.8))
+    ax.bar(
+        x - width / 2,
+        hedge_plot["standalone_es"],
+        width=width,
+        label="Standalone ES",
+        color="#72B7B2",
+    )
+    src_colors = [
+        "#F58518" if role == "Risk" else "#54A24B" for role in hedge_plot["role"]
+    ]
+    ax.bar(
+        x + width / 2,
+        hedge_plot["src"],
+        width=width,
+        label="Shapley SRC",
+        color=src_colors,
+    )
+    ax.axhline(0.0, color="#555555", linewidth=1.0)
+    ax.set_xticks(x)
+    ax.set_xticklabels(hedge_plot["asset"])
+    ax.set_ylabel("Risk Value")
+    ax.set_title("Scenario B: Standalone ES vs SRC")
+    ax.legend(loc="upper right", frameon=True, framealpha=0.9)
+    ax.grid(True, axis="y", linestyle="--", alpha=0.4)
+    plt.tight_layout()
+    hedge_path = f"{figure_dir}/empirical_hedge_negative.png"
+    fig.savefig(hedge_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved {hedge_path}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Render risk experiment figures from snapshot CSV files",
@@ -420,6 +505,7 @@ def main() -> None:
     _plot_restoration_accuracy(snapshot_dir, figure_dir)
     _plot_quantum_comparison(snapshot_dir, figure_dir)
     _plot_equal_error(snapshot_dir, figure_dir)
+    _plot_empirical_cases(snapshot_dir, figure_dir)
 
 
 if __name__ == "__main__":

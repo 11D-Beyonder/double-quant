@@ -5,10 +5,15 @@ import sys
 from pathlib import Path
 from typing import Literal
 
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 import numpy as np
 import pandas as pd
 
 from double_quant.application.risk import RiskAttributor, RiskSavingValueFunction
+from double_quant.common.metric import expected_shortfall
 from double_quant.common.util import divide_by_volatility
 from double_quant.solver.shapley import (
     BinaryEnumerationCalculator,
@@ -21,10 +26,6 @@ from experiments.risk.artifacts import (
     get_artifact_paths,
     write_manifest,
 )
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
 
 def _needs_refresh(paths: list[Path], force: bool) -> bool:
@@ -460,6 +461,192 @@ def _generate_equal_error_snapshot(
     print(f"Wrote {out_path}")
 
 
+def _compute_src_with_quantum_fallback(
+    returns_sub: pd.DataFrame,
+    *,
+    internal_qubits_num: int,
+) -> tuple[dict[str, float], str]:
+    try:
+        src = RiskAttributor(
+            returns_sub,
+            QuantumCalculator,
+            mode="rs",
+            internal_qubits_num=internal_qubits_num,
+            internal_multiplier=1,
+            extraction_mode="statevector",
+        ).attribute()
+        return {asset: float(value) for asset, value in src.items()}, "quantum_rs"
+    except Exception:
+        src = RiskAttributor(
+            returns_sub,
+            BinaryEnumerationCalculator,
+            mode="es",
+        ).attribute()
+        return {asset: float(value) for asset, value in src.items()}, "classical_es"
+
+
+def _select_hidden_risk_assets(
+    *,
+    low_assets: list[str],
+    high_assets: list[str],
+) -> tuple[list[str], str]:
+    high_asset = "TSLA" if "TSLA" in high_assets else sorted(high_assets)[0]
+    preferred_low = [
+        "KO",
+        "JNJ",
+        "TLT",
+        "IEF",
+        "SHY",
+        "GOVT",
+        "DUK",
+        "SO",
+        "ED",
+        "WM",
+        "RSG",
+        "PG",
+        "PEP",
+        "WMT",
+    ]
+
+    selected_low: list[str] = []
+    for asset in preferred_low:
+        if asset in low_assets and asset not in selected_low and asset != high_asset:
+            selected_low.append(asset)
+
+    for asset in sorted(low_assets):
+        if asset == high_asset or asset in selected_low:
+            continue
+        selected_low.append(asset)
+        if len(selected_low) >= 9:
+            break
+
+    if len(selected_low) < 9:
+        raise ValueError(
+            "Not enough low-volatility assets to build hidden-risk scenario"
+        )
+
+    return selected_low[:9] + [high_asset], high_asset
+
+
+def _select_hedge_pair(
+    *,
+    returns: pd.DataFrame,
+    high_asset: str,
+    low_assets: list[str],
+) -> tuple[str, dict[str, float]]:
+    candidate_hedges = ["TLT", "IEF", "GOVT", "SHY", "GLD"] + sorted(low_assets)
+    seen: set[str] = set()
+    best_hedge: str | None = None
+    best_src: dict[str, float] | None = None
+    best_hedge_src = float("inf")
+
+    for hedge in candidate_hedges:
+        if hedge in seen or hedge == high_asset or hedge not in returns.columns:
+            continue
+        seen.add(hedge)
+
+        src = RiskAttributor(
+            returns[[high_asset, hedge]],
+            BinaryEnumerationCalculator,
+            mode="es",
+        ).attribute()
+        hedge_src = float(src[hedge])
+        if hedge_src < best_hedge_src:
+            best_hedge_src = hedge_src
+            best_hedge = hedge
+            best_src = {asset: float(value) for asset, value in src.items()}
+        if hedge_src < 0:
+            break
+
+    if best_hedge is None or best_src is None:
+        raise ValueError("Failed to find hedge candidate for empirical scenario")
+
+    return best_hedge, best_src
+
+
+def _generate_empirical_scenario_snapshots(
+    *, returns: pd.DataFrame, snapshot_dir: Path, force: bool
+) -> None:
+    hidden_path = snapshot_dir / "empirical_hidden_risk.csv"
+    hedge_path = snapshot_dir / "empirical_hedge_negative.csv"
+    if not _needs_refresh([hidden_path, hedge_path], force):
+        print("Skip empirical scenario snapshots: files already exist")
+        return
+
+    buckets = divide_by_volatility(returns, [0.3, 0.7])
+    low_assets, _, high_assets = buckets[0], buckets[1], buckets[2]
+
+    hidden_assets, high_asset = _select_hidden_risk_assets(
+        low_assets=low_assets,
+        high_assets=high_assets,
+    )
+    hidden_returns = returns[hidden_assets]
+    hidden_src, hidden_method = _compute_src_with_quantum_fallback(
+        hidden_returns,
+        internal_qubits_num=6,
+    )
+    total_hidden_src = float(sum(hidden_src.values()))
+
+    hidden_rows: list[dict[str, float | str]] = []
+    for asset in hidden_assets:
+        capital_weight = 1.0 / len(hidden_assets)
+        src = float(hidden_src[asset])
+        src_share = src / total_hidden_src if abs(total_hidden_src) > 1e-12 else 0.0
+        amplification = src_share / capital_weight if capital_weight > 0 else 0.0
+        hidden_rows.append(
+            {
+                "asset": asset,
+                "capital_weight": capital_weight,
+                "src": src,
+                "src_share": src_share,
+                "amplification": amplification,
+                "risk_tier": "High" if asset == high_asset else "Low",
+                "attribution_method": hidden_method,
+            }
+        )
+
+    pd.DataFrame(hidden_rows).sort_values("src_share", ascending=False).to_csv(
+        hidden_path, index=False
+    )
+    print(f"Wrote {hidden_path}")
+
+    hedge_asset, _ = _select_hedge_pair(
+        returns=returns,
+        high_asset=high_asset,
+        low_assets=low_assets,
+    )
+    hedge_returns = returns[[high_asset, hedge_asset]]
+    hedge_src, hedge_method = _compute_src_with_quantum_fallback(
+        hedge_returns,
+        internal_qubits_num=5,
+    )
+    portfolio_es = float(
+        expected_shortfall(hedge_returns.mean(axis=1).to_numpy(), 0.95)
+    )
+    total_hedge_src = float(sum(hedge_src.values()))
+
+    hedge_rows: list[dict[str, float | str]] = []
+    for asset in [high_asset, hedge_asset]:
+        standalone_es = float(expected_shortfall(hedge_returns[asset].to_numpy(), 0.95))
+        src = float(hedge_src[asset])
+        src_share = src / total_hedge_src if abs(total_hedge_src) > 1e-12 else 0.0
+        hedge_rows.append(
+            {
+                "asset": asset,
+                "capital_weight": 0.5,
+                "standalone_es": standalone_es,
+                "src": src,
+                "src_share": src_share,
+                "portfolio_es": portfolio_es,
+                "role": "Risk" if asset == high_asset else "Hedge",
+                "attribution_method": hedge_method,
+            }
+        )
+
+    pd.DataFrame(hedge_rows).to_csv(hedge_path, index=False)
+    print(f"Wrote {hedge_path}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate risk experiment snapshot data for plotting",
@@ -502,6 +689,11 @@ def main() -> None:
         snapshot_dir=paths.snapshot_dir,
         force=args.force,
     )
+    _generate_empirical_scenario_snapshots(
+        returns=returns,
+        snapshot_dir=paths.snapshot_dir,
+        force=args.force,
+    )
 
     manifest = write_manifest(
         output_dir=paths.snapshot_dir,
@@ -536,6 +728,18 @@ def main() -> None:
                 "mlqae_eval_qubits": [2, 3, 4, 5, 6],
                 "fae_maxiters": [3, 4, 5, 6, 7],
                 "fae_delta": 0.05,
+            },
+            "empirical_cases": {
+                "hidden_risk": {
+                    "portfolio_size": 10,
+                    "target_high_asset": "TSLA",
+                    "low_assets_count": 9,
+                },
+                "hedge_negative": {
+                    "target_risk_asset": "TSLA",
+                    "preferred_hedges": ["TLT", "IEF", "GOVT", "SHY", "GLD"],
+                    "portfolio_weights": [0.5, 0.5],
+                },
             },
         },
         source_data=str(dp.file_path),
