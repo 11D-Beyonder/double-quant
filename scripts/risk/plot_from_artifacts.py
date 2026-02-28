@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
+from matplotlib.font_manager import FontProperties
+from matplotlib.ticker import FixedLocator, FuncFormatter, LogLocator, NullFormatter
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
@@ -48,6 +49,29 @@ QUANTUM_METHOD_COLORS = {
     "ML-QAE": "#54A24B",
     "Statevector": "#7E57C2",
 }
+
+FANGSONG_FONT_PATH = ROOT_DIR / "scripts/fonts/FangSong.ttf"
+ENGLISH_FONT = FontProperties(family=["Times New Roman"])
+CHINESE_FONT = (
+    FontProperties(fname=str(FANGSONG_FONT_PATH))
+    if FANGSONG_FONT_PATH.exists()
+    else ENGLISH_FONT
+)
+
+
+def _contains_cjk(text: str) -> bool:
+    return any("\u4e00" <= char <= "\u9fff" for char in text)
+
+
+def _apply_legend_fonts(legend) -> None:
+    for text in legend.get_texts():
+        font_size = text.get_fontsize()
+        if _contains_cjk(text.get_text()):
+            font_prop = CHINESE_FONT.copy()
+        else:
+            font_prop = ENGLISH_FONT.copy()
+        font_prop.set_size(font_size)
+        text.set_fontproperties(font_prop)
 
 
 def _plot_volatility_trend(snapshot_dir: str, figure_dir: str) -> None:
@@ -105,7 +129,7 @@ def _plot_volatility_trend(snapshot_dir: str, figure_dir: str) -> None:
 
     ax1.tick_params(labelbottom=False)
     plt.tight_layout(h_pad=1.2)
-    out_path = f"{figure_dir}/vol_buckets_trend.png"
+    out_path = f"{figure_dir}/vol_buckets_trend.svg"
     plt.savefig(out_path)
     print(f"Saved {out_path}")
 
@@ -167,7 +191,7 @@ def _plot_restoration_accuracy(snapshot_dir: str, figure_dir: str) -> None:
         )
 
     plt.tight_layout()
-    out_path = f"{figure_dir}/restoration_accuracy_bar.png"
+    out_path = f"{figure_dir}/restoration_accuracy_bar.svg"
     plt.savefig(out_path)
     print(f"Saved {out_path}")
 
@@ -222,7 +246,7 @@ def _plot_quantum_comparison(snapshot_dir: str, figure_dir: str) -> None:
         for idx, method in enumerate(methods)
     }
 
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey=False)
+    fig, axes = plt.subplots(2, 2, figsize=(13, 8), sharex=True, sharey=False)
     for idx, n in enumerate(asset_sizes):
         row_idx, col_idx = divmod(idx, 2)
         ax = axes[row_idx, col_idx]
@@ -261,23 +285,15 @@ def _plot_quantum_comparison(snapshot_dir: str, figure_dir: str) -> None:
             }
             ax.plot(x_vals[order], y_vals[order], **plot_kwargs)
 
-        ax.set_title(f"n = {n} (local y-scale)", fontsize=12)
         ax.set_ylim(local_min - local_pad, local_max + local_pad)
-        ax.tick_params(axis="both", labelsize=11)
+        ax.tick_params(axis="both", labelsize=18)
         ax.grid(True, which="major", linestyle="--", alpha=0.4)
         ax.grid(True, which="minor", linestyle=":", alpha=0.2)
         ax.minorticks_on()
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-
-        if row_idx == 1:
-            ax.set_xlabel(r"Interval Register Qubits ($n_l$)", fontsize=12)
-        else:
-            ax.set_xlabel("")
-        if col_idx == 0:
-            ax.set_ylabel("Mean Relative Error", fontsize=12)
-        else:
-            ax.set_ylabel("")
+        ax.set_xlabel("")
+        ax.set_ylabel("")
 
     legend_handles = [
         Line2D(
@@ -295,20 +311,21 @@ def _plot_quantum_comparison(snapshot_dir: str, figure_dir: str) -> None:
         for method in methods
     ]
     legend_ncol = max(1, len(methods))
-    fig.legend(
+    legend = fig.legend(
         handles=legend_handles,
         loc="lower center",
         ncol=legend_ncol,
-        fontsize=10,
+        fontsize=18,
         frameon=True,
         framealpha=0.92,
         edgecolor="#cccccc",
         bbox_to_anchor=(0.5, 0.01),
     )
+    _apply_legend_fonts(legend)
 
-    fig.tight_layout(rect=(0.0, 0.08, 1.0, 1.0))
-    out_path = f"{figure_dir}/quantum_comparison_grid.png"
-    fig.savefig(out_path, dpi=300, bbox_inches="tight")
+    fig.tight_layout(rect=(0.0, 0.14, 1.0, 1.0))
+    out_path = f"{figure_dir}/quantum_comparison_grid.svg"
+    fig.savefig(out_path)
     plt.close(fig)
     print(f"Saved {out_path}")
 
@@ -354,13 +371,15 @@ def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
         if subset.empty:
             continue
 
+        legend_label = "经典蒙特卡洛" if method == "Classical MC" else method
+
         ax.errorbar(
             subset["epsilon"],
             subset["mean_calls"],
             yerr=subset["std_calls"].fillna(0.0),
             marker=markers.get(method, "o"),
             markersize=6,
-            label=method,
+            label=legend_label,
             color=palette.get(method, "gray"),
             linewidth=1.5,
             capsize=3,
@@ -375,28 +394,58 @@ def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
             return f"{int(round(exponent))}"
         return ""
 
-    ax.set_title(
-        "Equal-Error Oracle Calls (Fixed Grid + Fallback)", fontsize=14, pad=10
-    )
-    ax.set_xlabel(r"Target Relative Error ($\log_{10}\epsilon$)", fontsize=12)
-    ax.set_ylabel(r"Oracle Calls to Reach $\epsilon$ ($\log_{10}$ scale)", fontsize=12)
+    ax.set_xlabel("")
+    ax.set_ylabel("")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.xaxis.set_major_locator(LogLocator(base=10.0))
-    ax.xaxis.set_major_formatter(FuncFormatter(_log10_exponent_formatter))
+    x_ticks = [0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
+    x_tick_labels = {
+        0.1: "0.1",
+        0.05: "0.05",
+        0.02: "0.02",
+        0.01: "0.01",
+        0.005: "0.005",
+        0.002: "0.002",
+        0.001: "0.001",
+    }
+
+    def _epsilon_formatter(value: float, _position: int) -> str:
+        for tick, label in x_tick_labels.items():
+            if np.isclose(value, tick, rtol=0.0, atol=1e-12):
+                return label
+        return ""
+
+    ax.xaxis.set_major_locator(FixedLocator(x_ticks))
+    ax.xaxis.set_major_formatter(FuncFormatter(_epsilon_formatter))
     ax.xaxis.set_minor_formatter(NullFormatter())
     ax.yaxis.set_major_locator(LogLocator(base=10.0))
     ax.yaxis.set_major_formatter(FuncFormatter(_log10_exponent_formatter))
     ax.yaxis.set_minor_formatter(NullFormatter())
-    ax.grid(True, which="major", linestyle="--", alpha=0.4)
-    ax.grid(True, which="minor", linestyle=":", alpha=0.2)
-    ax.legend(
-        loc="best", fontsize=10, frameon=True, framealpha=0.9, edgecolor="#cccccc"
+
+    major_ticks = ax.xaxis.get_major_ticks()
+    base_tick_label_size = (
+        major_ticks[0].label1.get_fontsize()
+        if major_ticks
+        else plt.rcParams["xtick.labelsize"]
+    )
+    ax.tick_params(
+        axis="both", which="major", labelsize=float(base_tick_label_size) * 1.2
     )
 
+    ax.grid(True, which="major", linestyle="--", alpha=0.4)
+    ax.grid(True, which="minor", linestyle=":", alpha=0.2)
+    legend = ax.legend(
+        loc="lower left",
+        fontsize=15,
+        frameon=True,
+        framealpha=0.9,
+        edgecolor="#cccccc",
+    )
+    _apply_legend_fonts(legend)
+
     plt.tight_layout()
-    out_path = f"{figure_dir}/equal_error_oracle_calls_fixed_grid_fallback.png"
-    plt.savefig(out_path, dpi=300, bbox_inches="tight")
+    out_path = f"{figure_dir}/equal_error_oracle_calls_fixed_grid_fallback.svg"
+    plt.savefig(out_path)
     print(f"Saved {out_path}")
 
 
@@ -440,13 +489,14 @@ def _plot_empirical_cases(snapshot_dir: str, figure_dir: str) -> None:
     )
     ax.set_xticks(x)
     ax.set_xticklabels(hidden_plot["asset"], rotation=45, ha="right")
-    ax.set_ylabel("Percent (%)")
-    ax.set_title("Scenario A: Hidden Risk (Capital Share vs SRC Share)")
-    ax.legend(loc="upper right", frameon=True, framealpha=0.9)
+    # ax.set_ylabel("Percent (%)")
+    # ax.set_title("Scenario A: Hidden Risk (Capital Share vs SRC Share)")
+    legend = ax.legend(loc="upper right", frameon=True, framealpha=0.9)
+    _apply_legend_fonts(legend)
     ax.grid(True, axis="y", linestyle="--", alpha=0.4)
     plt.tight_layout()
-    hidden_path = f"{figure_dir}/empirical_hidden_risk.png"
-    fig.savefig(hidden_path, dpi=300, bbox_inches="tight")
+    hidden_path = f"{figure_dir}/empirical_hidden_risk.svg"
+    fig.savefig(hidden_path)
     plt.close(fig)
     print(f"Saved {hidden_path}")
 
@@ -476,11 +526,12 @@ def _plot_empirical_cases(snapshot_dir: str, figure_dir: str) -> None:
     ax.set_xticklabels(hedge_plot["asset"])
     ax.set_ylabel("Risk Value")
     ax.set_title("Scenario B: Standalone ES vs SRC")
-    ax.legend(loc="upper right", frameon=True, framealpha=0.9)
+    legend = ax.legend(loc="upper right", frameon=True, framealpha=0.9)
+    _apply_legend_fonts(legend)
     ax.grid(True, axis="y", linestyle="--", alpha=0.4)
     plt.tight_layout()
-    hedge_path = f"{figure_dir}/empirical_hedge_negative.png"
-    fig.savefig(hedge_path, dpi=300, bbox_inches="tight")
+    hedge_path = f"{figure_dir}/empirical_hedge_negative.svg"
+    fig.savefig(hedge_path)
     plt.close(fig)
     print(f"Saved {hedge_path}")
 
