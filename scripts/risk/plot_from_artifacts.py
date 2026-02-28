@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 from pathlib import Path
 import sys
 
@@ -477,8 +478,16 @@ def _plot_empirical_cases(snapshot_dir: str, figure_dir: str) -> None:
         label="Capital Weight (%)",
         color="#6BAED6",
     )
+    src_positive_color = "#4C78A8"
+    src_negative_color = "#72B7B2"
+    src_high_risk_color = "#E45756"
     risk_colors = [
-        "#E45756" if tier == "High" else "#4C78A8" for tier in hidden_plot["risk_tier"]
+        (
+            src_high_risk_color
+            if tier == "High"
+            else (src_negative_color if src_share < 0 else src_positive_color)
+        )
+        for tier, src_share in zip(hidden_plot["risk_tier"], hidden_plot["src_share"])
     ]
     ax.bar(
         x + width / 2,
@@ -488,12 +497,18 @@ def _plot_empirical_cases(snapshot_dir: str, figure_dir: str) -> None:
         color=risk_colors,
     )
     ax.set_xticks(x)
-    ax.set_xticklabels(hidden_plot["asset"], rotation=45, ha="right")
-    # ax.set_ylabel("Percent (%)")
-    # ax.set_title("Scenario A: Hidden Risk (Capital Share vs SRC Share)")
-    legend = ax.legend(loc="upper right", frameon=True, framealpha=0.9)
-    _apply_legend_fonts(legend)
+    ax.set_xticklabels(hidden_plot["asset"], rotation=45, ha="right", fontsize=15)
+    ax.tick_params(axis="y", labelsize=15)
+
+    ax_right = ax.secondary_yaxis("right", functions=(lambda y: y, lambda y: y))
+    ax_right.tick_params(
+        axis="y", which="both", labelsize=15, right=False, length=0, pad=9
+    )
+
     ax.grid(True, axis="y", linestyle="--", alpha=0.4)
+    shared_ticks = ax.get_yticks()
+    ax_right.set_yticks(shared_ticks)
+    ax_right.set_ylim(ax.get_ylim())
     plt.tight_layout()
     hidden_path = f"{figure_dir}/empirical_hidden_risk.svg"
     fig.savefig(hidden_path)
