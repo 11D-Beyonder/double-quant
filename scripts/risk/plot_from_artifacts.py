@@ -30,15 +30,6 @@ QUANTUM_METHOD_ORDER = [
     "Statevector",
 ]
 
-QUANTUM_METHOD_ALIASES = {
-    "shots(1024)": "shots=1024",
-    "shots(4096)": "shots=4096",
-    "qae_iqae": "I-QAE",
-    "qae_fae": "F-QAE",
-    "qae_mlqae": "ML-QAE",
-    "statevector": "Statevector",
-}
-
 QUANTUM_METHOD_COLORS = {
     "shots=1024": "#4C78A8",
     "shots=4096": "#9C755F",
@@ -193,12 +184,7 @@ def _plot_quantum_comparison(snapshot_dir: str, figure_dir: str) -> None:
     method_set: set[str] = set()
 
     for n in asset_sizes:
-        frame = pd.read_csv(f"{snapshot_dir}/quantum_comparison_n{n}.csv").copy()
-        frame["method"] = (
-            frame["method"]
-            .astype(str)
-            .map(lambda method: QUANTUM_METHOD_ALIASES.get(method, method))
-        )
+        frame = pd.read_csv(f"{snapshot_dir}/quantum_comparison_n{n}.csv")
         frames_by_n[n] = frame
         method_set.update(frame["method"].dropna().astype(str).unique().tolist())
 
@@ -314,10 +300,6 @@ def _plot_quantum_comparison(snapshot_dir: str, figure_dir: str) -> None:
 
 def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
     df_summary = pd.read_csv(f"{snapshot_dir}/equal_error_oracle_calls_summary.csv")
-    df_summary = df_summary.copy()
-    df_summary["method"] = df_summary["method"].replace(
-        {"IQAE": "I-QAE", "FAE": "F-QAE"}
-    )
 
     sns.set_theme(
         style="whitegrid",
