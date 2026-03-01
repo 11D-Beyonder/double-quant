@@ -11,16 +11,15 @@ import seaborn as sns
 from matplotlib.lines import Line2D
 from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
 
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from experiments.risk.artifacts import (
     REQUIRED_SNAPSHOT_FILES,
     get_artifact_paths,
     require_snapshot_files,
 )
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
-
 
 QUANTUM_METHOD_ORDER = [
     "shots=1024",

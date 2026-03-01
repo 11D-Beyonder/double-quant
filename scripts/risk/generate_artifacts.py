@@ -16,15 +16,24 @@ from double_quant.solver.shapley import (
     QAEOptions,
     QuantumCalculator,
 )
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 from experiments.risk.artifacts import (
     DataPreparation,
     get_artifact_paths,
     write_manifest,
 )
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+
+EXPERIMENT_CHOICES = (
+    "volatility",
+    "restoration",
+    "quantum_comparison",
+    "equal_error",
+    "empirical_scenario",
+)
 
 
 def _needs_refresh(paths: list[Path], force: bool) -> bool:
@@ -578,6 +587,17 @@ def parse_args() -> argparse.Namespace:
         description="Generate risk experiment snapshot data for plotting",
     )
     parser.add_argument(
+        "-e",
+        "--experiment",
+        dest="experiments",
+        action="append",
+        choices=EXPERIMENT_CHOICES,
+        help=(
+            "run only selected experiment(s); repeat this flag to run multiple "
+            "experiments (default: run all)"
+        ),
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="overwrite snapshot files even if they already exist",
@@ -587,6 +607,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    selected_experiments = list(dict.fromkeys(args.experiments or EXPERIMENT_CHOICES))
+
     paths = get_artifact_paths()
     paths.cache_dir.mkdir(parents=True, exist_ok=True)
     paths.snapshot_dir.mkdir(parents=True, exist_ok=True)
@@ -595,36 +617,42 @@ def main() -> None:
     prices = dp.download()
     returns = np.log(prices / prices.shift(1)).dropna()
 
-    _generate_volatility_snapshots(
-        returns=returns,
-        snapshot_dir=paths.snapshot_dir,
-        force=args.force,
-    )
-    _generate_restoration_snapshot(
-        returns=returns,
-        snapshot_dir=paths.snapshot_dir,
-        force=args.force,
-    )
-    _generate_quantum_comparison_snapshots(
-        returns=returns,
-        snapshot_dir=paths.snapshot_dir,
-        force=args.force,
-    )
-    _generate_equal_error_snapshot(
-        returns=returns,
-        snapshot_dir=paths.snapshot_dir,
-        force=args.force,
-    )
-    _generate_empirical_scenario_snapshots(
-        returns=returns,
-        snapshot_dir=paths.snapshot_dir,
-        force=args.force,
-    )
+    if "volatility" in selected_experiments:
+        _generate_volatility_snapshots(
+            returns=returns,
+            snapshot_dir=paths.snapshot_dir,
+            force=args.force,
+        )
+    if "restoration" in selected_experiments:
+        _generate_restoration_snapshot(
+            returns=returns,
+            snapshot_dir=paths.snapshot_dir,
+            force=args.force,
+        )
+    if "quantum_comparison" in selected_experiments:
+        _generate_quantum_comparison_snapshots(
+            returns=returns,
+            snapshot_dir=paths.snapshot_dir,
+            force=args.force,
+        )
+    if "equal_error" in selected_experiments:
+        _generate_equal_error_snapshot(
+            returns=returns,
+            snapshot_dir=paths.snapshot_dir,
+            force=args.force,
+        )
+    if "empirical_scenario" in selected_experiments:
+        _generate_empirical_scenario_snapshots(
+            returns=returns,
+            snapshot_dir=paths.snapshot_dir,
+            force=args.force,
+        )
 
     manifest = write_manifest(
         output_dir=paths.snapshot_dir,
         params={
             "force": bool(args.force),
+            "selected_experiments": selected_experiments,
             "windows": {"start": "2020-04-01", "end": "2022-04-01"},
             "quantum_comparison": {
                 "n_rounds": 50,
