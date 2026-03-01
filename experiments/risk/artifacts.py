@@ -11,7 +11,6 @@ from double_quant.data.time_series import from_yfinance
 QUANTUM_COMPARISON_FILES = [f"quantum_comparison_n{n}.csv" for n in (3, 4, 5, 6)]
 EMPIRICAL_CASE_FILES = [
     "empirical_hidden_risk.csv",
-    "empirical_hedge_negative.csv",
 ]
 
 

@@ -5,15 +5,10 @@ import sys
 from pathlib import Path
 from typing import Literal
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
-
 import numpy as np
 import pandas as pd
 
 from double_quant.application.risk import RiskAttributor, RiskSavingValueFunction
-from double_quant.common.metric import expected_shortfall
 from double_quant.common.util import divide_by_volatility
 from double_quant.solver.shapley import (
     BinaryEnumerationCalculator,
@@ -26,6 +21,10 @@ from experiments.risk.artifacts import (
     get_artifact_paths,
     write_manifest,
 )
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 
 def _needs_refresh(paths: list[Path], force: bool) -> bool:
@@ -528,48 +527,11 @@ def _select_hidden_risk_assets(
     return selected_low[:9] + [high_asset], high_asset
 
 
-def _select_hedge_pair(
-    *,
-    returns: pd.DataFrame,
-    high_asset: str,
-    low_assets: list[str],
-) -> tuple[str, dict[str, float]]:
-    candidate_hedges = ["TLT", "IEF", "GOVT", "SHY", "GLD"] + sorted(low_assets)
-    seen: set[str] = set()
-    best_hedge: str | None = None
-    best_src: dict[str, float] | None = None
-    best_hedge_src = float("inf")
-
-    for hedge in candidate_hedges:
-        if hedge in seen or hedge == high_asset or hedge not in returns.columns:
-            continue
-        seen.add(hedge)
-
-        src = RiskAttributor(
-            returns[[high_asset, hedge]],
-            BinaryEnumerationCalculator,
-            mode="es",
-        ).attribute()
-        hedge_src = float(src[hedge])
-        if hedge_src < best_hedge_src:
-            best_hedge_src = hedge_src
-            best_hedge = hedge
-            best_src = {asset: float(value) for asset, value in src.items()}
-        if hedge_src < 0:
-            break
-
-    if best_hedge is None or best_src is None:
-        raise ValueError("Failed to find hedge candidate for empirical scenario")
-
-    return best_hedge, best_src
-
-
 def _generate_empirical_scenario_snapshots(
     *, returns: pd.DataFrame, snapshot_dir: Path, force: bool
 ) -> None:
     hidden_path = snapshot_dir / "empirical_hidden_risk.csv"
-    hedge_path = snapshot_dir / "empirical_hedge_negative.csv"
-    if not _needs_refresh([hidden_path, hedge_path], force):
+    if not _needs_refresh([hidden_path], force):
         print("Skip empirical scenario snapshots: files already exist")
         return
 
@@ -609,42 +571,6 @@ def _generate_empirical_scenario_snapshots(
         hidden_path, index=False
     )
     print(f"Wrote {hidden_path}")
-
-    hedge_asset, _ = _select_hedge_pair(
-        returns=returns,
-        high_asset=high_asset,
-        low_assets=low_assets,
-    )
-    hedge_returns = returns[[high_asset, hedge_asset]]
-    hedge_src, hedge_method = _compute_src_with_quantum_fallback(
-        hedge_returns,
-        internal_qubits_num=5,
-    )
-    portfolio_es = float(
-        expected_shortfall(hedge_returns.mean(axis=1).to_numpy(), 0.95)
-    )
-    total_hedge_src = float(sum(hedge_src.values()))
-
-    hedge_rows: list[dict[str, float | str]] = []
-    for asset in [high_asset, hedge_asset]:
-        standalone_es = float(expected_shortfall(hedge_returns[asset].to_numpy(), 0.95))
-        src = float(hedge_src[asset])
-        src_share = src / total_hedge_src if abs(total_hedge_src) > 1e-12 else 0.0
-        hedge_rows.append(
-            {
-                "asset": asset,
-                "capital_weight": 0.5,
-                "standalone_es": standalone_es,
-                "src": src,
-                "src_share": src_share,
-                "portfolio_es": portfolio_es,
-                "role": "Risk" if asset == high_asset else "Hedge",
-                "attribution_method": hedge_method,
-            }
-        )
-
-    pd.DataFrame(hedge_rows).to_csv(hedge_path, index=False)
-    print(f"Wrote {hedge_path}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -734,11 +660,6 @@ def main() -> None:
                     "portfolio_size": 10,
                     "target_high_asset": "TSLA",
                     "low_assets_count": 9,
-                },
-                "hedge_negative": {
-                    "target_risk_asset": "TSLA",
-                    "preferred_hedges": ["TLT", "IEF", "GOVT", "SHY", "GLD"],
-                    "portfolio_weights": [0.5, 0.5],
                 },
             },
         },

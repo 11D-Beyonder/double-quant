@@ -1,7 +1,10 @@
 {
-  "generated_at": "2026-02-26T18:10:56.010099+00:00",
+  "generated_at": "2026-03-01T10:29:14.533021+00:00",
   "params": {
-    "force": true,
+    "force": false,
+    "selected_experiments": [
+      "restoration"
+    ],
     "windows": {
       "start": "2020-04-01",
       "end": "2022-04-01"
@@ -81,20 +84,6 @@
         "portfolio_size": 10,
         "target_high_asset": "TSLA",
         "low_assets_count": 9
-      },
-      "hedge_negative": {
-        "target_risk_asset": "TSLA",
-        "preferred_hedges": [
-          "TLT",
-          "IEF",
-          "GOVT",
-          "SHY",
-          "GLD"
-        ],
-        "portfolio_weights": [
-          0.5,
-          0.5
-        ]
       }
     }
   },

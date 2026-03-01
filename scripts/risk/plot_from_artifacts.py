@@ -1,25 +1,25 @@
 from __future__ import annotations
 
 import argparse
-from matplotlib.lines import Line2D
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from matplotlib.lines import Line2D
 from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
 from experiments.risk.artifacts import (
     REQUIRED_SNAPSHOT_FILES,
     get_artifact_paths,
     require_snapshot_files,
 )
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 
 QUANTUM_METHOD_ORDER = [
@@ -402,7 +402,6 @@ def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
 
 def _plot_empirical_cases(snapshot_dir: str, figure_dir: str) -> None:
     hidden_df = pd.read_csv(f"{snapshot_dir}/empirical_hidden_risk.csv")
-    hedge_df = pd.read_csv(f"{snapshot_dir}/empirical_hedge_negative.csv")
 
     sns.set_theme(
         style="whitegrid",
@@ -449,40 +448,6 @@ def _plot_empirical_cases(snapshot_dir: str, figure_dir: str) -> None:
     fig.savefig(hidden_path, dpi=300, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved {hidden_path}")
-
-    hedge_plot = hedge_df.copy()
-    x = np.arange(len(hedge_plot))
-    width = 0.36
-    fig, ax = plt.subplots(figsize=(7.2, 4.8))
-    ax.bar(
-        x - width / 2,
-        hedge_plot["standalone_es"],
-        width=width,
-        label="Standalone ES",
-        color="#72B7B2",
-    )
-    src_colors = [
-        "#F58518" if role == "Risk" else "#54A24B" for role in hedge_plot["role"]
-    ]
-    ax.bar(
-        x + width / 2,
-        hedge_plot["src"],
-        width=width,
-        label="Shapley SRC",
-        color=src_colors,
-    )
-    ax.axhline(0.0, color="#555555", linewidth=1.0)
-    ax.set_xticks(x)
-    ax.set_xticklabels(hedge_plot["asset"])
-    ax.set_ylabel("Risk Value")
-    ax.set_title("Scenario B: Standalone ES vs SRC")
-    ax.legend(loc="upper right", frameon=True, framealpha=0.9)
-    ax.grid(True, axis="y", linestyle="--", alpha=0.4)
-    plt.tight_layout()
-    hedge_path = f"{figure_dir}/empirical_hedge_negative.png"
-    fig.savefig(hedge_path, dpi=300, bbox_inches="tight")
-    plt.close(fig)
-    print(f"Saved {hedge_path}")
 
 
 def parse_args() -> argparse.Namespace:
