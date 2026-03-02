@@ -14,7 +14,11 @@ from qiskit_algorithms import (
 )
 
 from double_quant.common.util import normalize
-from double_quant.algorithm.shapley.protocol import ExtractionMode, QAEOptions, ValueFunction
+from double_quant.algorithm.shapley.protocol import (
+    ExtractionMode,
+    QAEOptions,
+    ValueFunction,
+)
 from double_quant.algorithm.shapley.calculator import ShapleyCalculator
 
 

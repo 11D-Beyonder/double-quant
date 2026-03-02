@@ -1,12 +1,8 @@
-from unittest.mock import patch, MagicMock
 import pandas as pd
-import numpy as np
-import pytest
 
 
 def test_yfinance_source_implements_protocol():
-    from double_quant.data.source import YFinanceSource, PriceSource
-    from typing import runtime_checkable, Protocol
+    from double_quant.data.source import YFinanceSource
 
     source = YFinanceSource()
     assert hasattr(source, "fetch")

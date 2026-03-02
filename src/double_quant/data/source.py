@@ -37,7 +37,20 @@ class YFinanceSource:
             except FileNotFoundError:
                 pass
 
-        data = yf.download(tickers, start=start, end=end, auto_adjust=self.auto_adjust)
+        downloaded = yf.download(
+            tickers,
+            start=start,
+            end=end,
+            auto_adjust=self.auto_adjust,
+        )
+        if downloaded is None:
+            raise ValueError("yfinance returned no data")
+
+        if isinstance(downloaded, pd.Series):
+            column_name = tickers[0] if len(tickers) == 1 else "value"
+            data = downloaded.to_frame(name=column_name)
+        else:
+            data = downloaded
 
         if isinstance(data.columns, pd.MultiIndex):
             if "Adj Close" in data.columns.get_level_values(0):
@@ -45,7 +58,12 @@ class YFinanceSource:
             elif "Close" in data.columns.get_level_values(0):
                 data = data["Close"]
 
-        data = data.dropna(axis=1, thresh=int(self.nan_threshold * len(data)))
+        if isinstance(data, pd.Series):
+            column_name = tickers[0] if len(tickers) == 1 else "value"
+            data = data.to_frame(name=column_name)
+
+        min_non_na = max(1, int(self.nan_threshold * len(data)))
+        data = data.dropna(axis="columns", thresh=min_non_na)
         data = data.ffill().dropna()
 
         if self.cache_path is not None:

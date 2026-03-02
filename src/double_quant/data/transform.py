@@ -18,4 +18,5 @@ def to_covariance(prices: pd.DataFrame) -> np.ndarray:
 
 def to_expected_returns(prices: pd.DataFrame) -> np.ndarray:
     """Close prices -> mean log return vector."""
-    return to_log_returns(prices).mean().values
+    mean_returns = to_log_returns(prices).mean().to_numpy(dtype=float)
+    return np.asarray(mean_returns, dtype=float)

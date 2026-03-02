@@ -121,9 +121,15 @@ class TestRiskSaving:
 
         rng = np.random.default_rng(seed=0)
         assets_5 = (
-            rng.choice(high_assets, size=min(2, len(high_assets)), replace=False).tolist()
-            + rng.choice(mid_assets, size=min(2, len(mid_assets)), replace=False).tolist()
-            + rng.choice(low_assets, size=min(1, len(low_assets)), replace=False).tolist()
+            rng.choice(
+                high_assets, size=min(2, len(high_assets)), replace=False
+            ).tolist()
+            + rng.choice(
+                mid_assets, size=min(2, len(mid_assets)), replace=False
+            ).tolist()
+            + rng.choice(
+                low_assets, size=min(1, len(low_assets)), replace=False
+            ).tolist()
         )
         returns_5 = returns.loc[:, assets_5]
 

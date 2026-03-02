@@ -210,4 +210,6 @@ class DataPreparation:
         use_cache: bool = True,
     ):
         cache_path = str(self.file_path) if use_cache else None
-        return YFinanceSource(cache_path=cache_path).fetch(self.get_tickers(), start, end)
+        return YFinanceSource(cache_path=cache_path).fetch(
+            self.get_tickers(), start, end
+        )

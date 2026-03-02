@@ -129,7 +129,9 @@ class PermutationMCCalculator(ShapleyCalculator):
 
             # v(S ∪ {i}) - v(S)
             with_player = precedent_mask | (1 << target_player)
-            contribution += self.value_dict[with_player] - self.value_dict[precedent_mask]
+            contribution += (
+                self.value_dict[with_player] - self.value_dict[precedent_mask]
+            )
 
         return contribution / self.num_samples
 

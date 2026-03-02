@@ -1,5 +1,6 @@
 from typing import Literal
 
+import numpy as np
 import pandas as pd
 
 from double_quant.common.metric import expected_shortfall
@@ -32,7 +33,10 @@ class ExpectedShortfallValueFunction:
         selected_assets = [
             self.assets[i] for i in range(self.num_assets) if (bitmask >> i) & 1
         ]
-        portfolio_returns = self.returns_df[selected_assets].mean(axis=1).to_numpy()
+        portfolio_returns = np.asarray(
+            self.returns_df[selected_assets].mean(axis=1).to_numpy(dtype=float),
+            dtype=float,
+        )
         return expected_shortfall(portfolio_returns, self.alpha)
 
 
@@ -50,7 +54,9 @@ class RiskSavingValueFunction:
 
         # Pre-calculate individual ES for each asset
         self.individual_es = {
-            asset: expected_shortfall(returns_df[asset].values, alpha)
+            asset: expected_shortfall(
+                np.asarray(returns_df[asset].to_numpy(dtype=float), dtype=float), alpha
+            )
             for asset in self.assets
         }
 
@@ -76,7 +82,10 @@ class RiskSavingValueFunction:
         # HACK: Assuming equal weight for assets in the subset (as is common in risk attribution experiments)
         # or weighted based on returns_df if it represents weighted returns.
         # Here we calculate the portfolio return as the average of selected assets' returns.
-        portfolio_returns = self.returns_df[selected_assets].mean(axis=1).values
+        portfolio_returns = np.asarray(
+            self.returns_df[selected_assets].mean(axis=1).to_numpy(dtype=float),
+            dtype=float,
+        )
         portfolio_es = expected_shortfall(portfolio_returns, self.alpha)
 
         return sum_individual_es - portfolio_es

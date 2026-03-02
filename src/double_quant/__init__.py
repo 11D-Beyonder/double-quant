@@ -11,7 +11,11 @@ from double_quant.algorithm.shapley import (
 )
 from double_quant.application.risk import RiskAttributor
 from double_quant.data.source import PriceSource, YFinanceSource
-from double_quant.data.transform import to_covariance, to_expected_returns, to_log_returns
+from double_quant.data.transform import (
+    to_covariance,
+    to_expected_returns,
+    to_log_returns,
+)
 
 __all__ = [
     "PriceSource",
