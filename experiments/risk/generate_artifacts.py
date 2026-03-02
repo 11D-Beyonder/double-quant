@@ -10,7 +10,7 @@ import pandas as pd
 
 from double_quant.application.risk import RiskAttributor, RiskSavingValueFunction
 from double_quant.common.util import divide_by_volatility
-from double_quant.solver.shapley import (
+from double_quant.algorithm.shapley import (
     BinaryEnumerationCalculator,
     PermutationMCCalculator,
     QAEOptions,
