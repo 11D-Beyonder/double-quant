@@ -3,7 +3,7 @@ from typing import Literal
 import pandas as pd
 
 from double_quant.common.metric import expected_shortfall
-from double_quant.solver.shapley import ShapleyCalculator
+from double_quant.algorithm.shapley import ShapleyCalculator
 
 
 class ExpectedShortfallValueFunction:
