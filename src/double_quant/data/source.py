@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import Protocol
 
 import pandas as pd
@@ -35,7 +34,7 @@ class YFinanceSource:
                 cached = pd.read_csv(self.cache_path, index_col=0, parse_dates=True)
                 if not cached.empty:
                     return cached
-            except (FileNotFoundError, Exception):
+            except FileNotFoundError:
                 pass
 
         data = yf.download(tickers, start=start, end=end, auto_adjust=self.auto_adjust)
