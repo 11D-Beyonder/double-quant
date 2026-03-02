@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from double_quant.data.time_series import from_yfinance
+from double_quant.data.source import YFinanceSource
 
 # 10 tickers covering high / mid / low volatility
 TEST_TICKERS = [
@@ -18,7 +18,7 @@ TEST_CACHE = str(
 
 @pytest.fixture(scope="session")
 def prices():
-    return from_yfinance(TEST_TICKERS, "2020-04-01", "2022-04-01", cache_path=TEST_CACHE)
+    return YFinanceSource(cache_path=TEST_CACHE).fetch(TEST_TICKERS, "2020-04-01", "2022-04-01")
 
 
 @pytest.fixture(scope="session")

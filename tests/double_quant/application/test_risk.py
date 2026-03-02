@@ -6,8 +6,8 @@ import pandas as pd
 from double_quant.application.risk import RiskAttributor, RiskSavingValueFunction
 from double_quant.common.metric import annualized_volatility
 from double_quant.common.util import divide_by_volatility
-from double_quant.data.time_series import from_yfinance
-from double_quant.solver.shapley import (
+from double_quant.data.source import YFinanceSource
+from double_quant.algorithm.shapley import (
     BinaryEnumerationCalculator,
     PermutationMCCalculator,
     QAEOptions,
@@ -44,7 +44,7 @@ def test_permutation_mc_basic():
 
 
 def test_data_download():
-    df = from_yfinance(["AAPL", "MSFT"], "2020-04-01", "2022-04-01")
+    df = YFinanceSource().fetch(["AAPL", "MSFT"], "2020-04-01", "2022-04-01")
     assert not df.empty
     assert len(df.columns) == 2
 

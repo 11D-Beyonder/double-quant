@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from double_quant.common.metric import annualized_volatility, expected_shortfall
 from double_quant.application.risk import RiskSavingValueFunction, RiskAttributor
-from double_quant.solver.shapley import BinaryEnumerationCalculator
+from double_quant.algorithm.shapley import BinaryEnumerationCalculator
 
 
 def test_metrics():
