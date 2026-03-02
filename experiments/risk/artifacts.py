@@ -35,7 +35,7 @@ class ArtifactPaths:
 
 def get_artifact_paths() -> ArtifactPaths:
     return ArtifactPaths(
-        cache_dir=Path("tests/double_quant/application/cache"),
+        cache_dir=Path("experiments/risk/cache"),
         snapshot_dir=Path("docs/assets/risk/data"),
         figure_dir=Path("docs/assets/risk"),
     )
@@ -64,7 +64,7 @@ def write_manifest(
 
 
 class DataPreparation:
-    def __init__(self, data_dir: str | Path = "tests/double_quant/application/cache"):
+    def __init__(self, data_dir: str | Path = "experiments/risk/cache"):
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.file_path = self.data_dir / "experiment_data_clean.csv"
