@@ -72,7 +72,7 @@ class SAPO:
     Examples:
         Basic usage:
         >>> import numpy as np
-        >>> from double_quant.optimizer import SAPO
+        >>> from double_quant.algorithm.hhl.sapo import SAPO
         >>> A = np.array([[2, 1], [1, 2]])
         >>> b = np.array([3, 3])
         >>> sapo = SAPO(A, b)

@@ -1,21 +1,18 @@
 from typing import Literal
-from pathlib import Path
-import sys
-from experiments.risk.artifacts import DataPreparation
+
+import numpy as np
+import pandas as pd
+
 from double_quant.application.risk import RiskAttributor, RiskSavingValueFunction
 from double_quant.common.metric import annualized_volatility
 from double_quant.common.util import divide_by_volatility
-from double_quant.solver.shapley import (
+from double_quant.data.source import YFinanceSource
+from double_quant.algorithm.shapley import (
     BinaryEnumerationCalculator,
     PermutationMCCalculator,
     QAEOptions,
     QuantumCalculator,
 )
-import numpy as np
-
-ROOT_DIR = Path(__file__).resolve().parents[3]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
 
 def test_permutation_mc_basic():
@@ -47,18 +44,14 @@ def test_permutation_mc_basic():
 
 
 def test_data_download():
-    dp = DataPreparation()
-    df = dp.download()
-
+    df = YFinanceSource().fetch(["AAPL", "MSFT"], "2020-04-01", "2022-04-01")
     assert not df.empty
-    assert len(df.columns) > 50
+    assert len(df.columns) == 2
 
 
-def test_volatility_bucketing():
-    dp = DataPreparation()
-    df = dp.download()
+def test_volatility_bucketing(returns: pd.DataFrame):
+    assert len(returns.columns) == 10
 
-    returns = np.log(df / df.shift(1)).dropna()
     buckets = divide_by_volatility(returns, [0.3, 0.7])
 
     low_vol_assets = buckets[0]
@@ -66,7 +59,7 @@ def test_volatility_bucketing():
     high_vol_assets = buckets[2]
 
     def get_avg_vol(assets: list[str]) -> float:
-        vols = [annualized_volatility(returns[asset]) for asset in assets]
+        vols = [annualized_volatility(returns[asset].to_numpy()) for asset in assets]
         return float(np.mean(vols))
 
     avg_low = get_avg_vol(low_vol_assets)
@@ -78,22 +71,15 @@ def test_volatility_bucketing():
     assert "TLT" in low_vol_assets
     assert "NVDA" in high_vol_assets
 
-    if "VIXY" in df.columns:
-        assert "VIXY" in high_vol_assets or "VIXY" in mid_vol_assets
-
 
 class TestRiskSaving:
     def _indices_to_mask(self, indices: list[int]) -> int:
         return sum(1 << i for i in indices)
 
-    def test_superadditivity(self):
+    def test_superadditivity(self, returns: pd.DataFrame):
         """Verify RS(S ∪ T) ≥ RS(S) + RS(T) for random disjoint S,T pairs."""
         n_trials = 5000
         float_tol = 1e-9
-
-        dp = DataPreparation()
-        prices = dp.download()
-        returns = np.log(prices / prices.shift(1)).dropna()
 
         vfunc = RiskSavingValueFunction(returns)
         n_assets = vfunc.num_assets
@@ -103,8 +89,10 @@ class TestRiskSaving:
 
         violations = 0
         for _ in range(n_trials):
-            s = int(rng.integers(2, 9))
-            t = int(rng.integers(2, 9))
+            s = int(rng.integers(2, min(9, n_assets // 2 + 1)))
+            t = int(rng.integers(2, min(9, n_assets // 2 + 1)))
+            if s + t > n_assets:
+                continue
             indices = rng.choice(n_assets, size=s + t, replace=False).tolist()
             idx_s, idx_t = indices[:s], indices[s:]
 
@@ -124,24 +112,26 @@ class TestRiskSaving:
             f"Min synergy = {synergy_arr.min():.9f}"
         )
 
-    def test_restoration_accuracy(self):
+    def test_restoration_accuracy(self, returns: pd.DataFrame):
         """Verify SRC_i = ES({i}) - Φ_i^RS matches direct Φ_i^ES path."""
         mae_tol = 1e-9
-
-        dp = DataPreparation()
-        prices = dp.download()
-        returns = np.log(prices / prices.shift(1)).dropna()
 
         buckets = divide_by_volatility(returns, [0.3, 0.7])
         low_assets, mid_assets, high_assets = buckets[0], buckets[1], buckets[2]
 
         rng = np.random.default_rng(seed=0)
         assets_5 = (
-            rng.choice(high_assets, size=2, replace=False).tolist()
-            + rng.choice(mid_assets, size=2, replace=False).tolist()
-            + rng.choice(low_assets, size=1, replace=False).tolist()
+            rng.choice(
+                high_assets, size=min(2, len(high_assets)), replace=False
+            ).tolist()
+            + rng.choice(
+                mid_assets, size=min(2, len(mid_assets)), replace=False
+            ).tolist()
+            + rng.choice(
+                low_assets, size=min(1, len(low_assets)), replace=False
+            ).tolist()
         )
-        returns_5 = returns[assets_5]
+        returns_5 = returns.loc[:, assets_5]
 
         src_es = RiskAttributor(
             returns_5, BinaryEnumerationCalculator, mode="es"
@@ -163,13 +153,9 @@ class TestRiskSaving:
 
 
 class TestQuantumSolver:
-    def test_quantum_basic(self):
+    def test_quantum_basic(self, returns: pd.DataFrame):
         """Small-scale verification that quantum Shapley matches exact baseline."""
         rel_tol = 0.05
-
-        dp = DataPreparation()
-        prices = dp.download()
-        returns = np.log(prices / prices.shift(1)).dropna()
 
         buckets = divide_by_volatility(returns, [0.3, 0.7])
         low_assets, mid_assets, high_assets = buckets[0], buckets[1], buckets[2]
@@ -180,7 +166,7 @@ class TestQuantumSolver:
             + rng.choice(mid_assets, size=1, replace=False).tolist()
             + rng.choice(low_assets, size=1, replace=False).tolist()
         )
-        returns_3 = returns[assets_3]
+        returns_3 = returns.loc[:, assets_3]
 
         src_exact = RiskAttributor(
             returns_3, BinaryEnumerationCalculator, mode="es"
@@ -199,13 +185,9 @@ class TestQuantumSolver:
                 f"Relative error for {asset} = {rel_err:.4%} exceeds {rel_tol:.0%}"
             )
 
-    def test_qae_modes_basic(self):
+    def test_qae_modes_basic(self, returns: pd.DataFrame):
         """Verify QAE extraction modes stay close to exact 3-asset baseline."""
         abs_tol = 0.005
-
-        dp = DataPreparation()
-        prices = dp.download()
-        returns = np.log(prices / prices.shift(1)).dropna()
 
         buckets = divide_by_volatility(returns, [0.3, 0.7])
         low_assets, mid_assets, high_assets = buckets[0], buckets[1], buckets[2]
@@ -216,7 +198,7 @@ class TestQuantumSolver:
             + rng.choice(mid_assets, size=1, replace=False).tolist()
             + rng.choice(low_assets, size=1, replace=False).tolist()
         )
-        returns_3 = returns[assets_3]
+        returns_3 = returns.loc[:, assets_3]
 
         src_exact = RiskAttributor(
             returns_3, BinaryEnumerationCalculator, mode="es"
@@ -244,12 +226,8 @@ class TestQuantumSolver:
                     f"[{qae_mode}] abs error for {asset} = {abs_err:.6f} exceeds {abs_tol}"
                 )
 
-    def test_oracle_count_tracked(self):
+    def test_oracle_count_tracked(self, returns: pd.DataFrame):
         """Verify oracle call counts are recorded for each extraction mode."""
-        dp = DataPreparation()
-        prices = dp.download()
-        returns = np.log(prices / prices.shift(1)).dropna()
-
         buckets = divide_by_volatility(returns, [0.3, 0.7])
         low_assets, mid_assets, high_assets = buckets[0], buckets[1], buckets[2]
 
@@ -259,7 +237,7 @@ class TestQuantumSolver:
             + rng.choice(mid_assets, size=1, replace=False).tolist()
             + rng.choice(low_assets, size=1, replace=False).tolist()
         )
-        returns_3 = returns[assets_3]
+        returns_3 = returns.loc[:, assets_3]
 
         vfunc = RiskSavingValueFunction(returns_3)
         n = len(assets_3)

@@ -1,10 +1,13 @@
 {
-  "generated_at": "2026-03-01T10:39:51.274087+00:00",
+  "generated_at": "2026-03-02T15:08:42.461040+00:00",
   "params": {
-    "force": false,
+    "force": true,
     "selected_experiments": [
+      "volatility",
       "restoration",
-      "volatility"
+      "quantum_comparison",
+      "equal_error",
+      "empirical_scenario"
     ],
     "windows": {
       "start": "2020-04-01",
@@ -88,5 +91,5 @@
       }
     }
   },
-  "source_data": "tests/double_quant/application/cache/experiment_data_clean.csv"
+  "source_data": "experiments/risk/cache/experiment_data_clean.csv"
 }

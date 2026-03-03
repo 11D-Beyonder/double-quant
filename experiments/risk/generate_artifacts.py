@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 from typing import Literal
 
@@ -10,16 +9,12 @@ import pandas as pd
 
 from double_quant.application.risk import RiskAttributor, RiskSavingValueFunction
 from double_quant.common.util import divide_by_volatility
-from double_quant.solver.shapley import (
+from double_quant.algorithm.shapley import (
     BinaryEnumerationCalculator,
     PermutationMCCalculator,
     QAEOptions,
     QuantumCalculator,
 )
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 from experiments.risk.artifacts import (
     DataPreparation,
     get_artifact_paths,

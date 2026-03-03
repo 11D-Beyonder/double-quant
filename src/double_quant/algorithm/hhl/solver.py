@@ -12,7 +12,7 @@ from qiskit.circuit.library import (
 )
 from qiskit.quantum_info import Statevector
 from double_quant.common import LinearSystem
-from double_quant.optimizer.sapo import SAPO
+from double_quant.algorithm.hhl.sapo import SAPO
 
 
 @final
@@ -396,7 +396,7 @@ def _extract_solution_by_statevector(circuit: _HhlCircuit):
     return solution
 
 
-class QuantumLinearSolver:
+class HHLSolver:
     """
     Quantum solver for linear systems using HHL algorithm.
 
@@ -414,14 +414,14 @@ class QuantumLinearSolver:
     Examples:
         Basic usage:
         >>> import numpy as np
-        >>> from double_quant.solver import QuantumLinearSolver
+        >>> from double_quant.algorithm.hhl import HHLSolver
         >>> A = np.array([[2, 1], [1, 2]])
         >>> b = np.array([3, 3])
-        >>> x = QuantumLinearSolver.solve(A, b)
+        >>> x = HHLSolver.solve(A, b)
         >>> # Verify: np.allclose(A @ x, b)
 
         Using SAPO optimization (default):
-        >>> x = QuantumLinearSolver.solve(A, b, method="sapo")
+        >>> x = HHLSolver.solve(A, b, method="sapo")
 
     Notes:
         - Matrix A must be square and symmetric (Hermitian)
@@ -465,14 +465,14 @@ class QuantumLinearSolver:
             Solve a simple 2×2 system:
             >>> A = np.array([[2, 1], [1, 2]])
             >>> b = np.array([3, 3])
-            >>> x = QuantumLinearSolver.solve(A, b)
+            >>> x = HHLSolver.solve(A, b)
             >>> print(f"Solution: {x}")
             >>> print(f"Verification: {np.allclose(A @ x, b)}")
 
             Solve a random 4×4 system:
             >>> from double_quant.common import LinearSystem
             >>> system = LinearSystem.random_for_hhl(n=4)
-            >>> x = QuantumLinearSolver.solve(
+            >>> x = HHLSolver.solve(
             ...     system.matrix, system.vector, method="sapo"
             ... )
 

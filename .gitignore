@@ -18,6 +18,10 @@ __pycache__/
 uv.lock
 .ruff_cache/
 
+# Data cache (tests and experiments)
+tests/**/cache/
+experiments/**/cache/
+
 # Claude Code
 .claude/
 

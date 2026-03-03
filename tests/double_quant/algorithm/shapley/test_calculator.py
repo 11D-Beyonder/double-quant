@@ -9,12 +9,14 @@ from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit_aer import AerSimulator
 from scipy import integrate, special
 
-from double_quant.solver.shapley import (
+from double_quant.algorithm.shapley import (
     BinaryEnumerationCalculator,
+    IntervalLoader,
     PermutationEnumerationCalculator,
     QuantumCalculator,
+    ValueLoader,
+    VertexRotator,
 )
-from double_quant.solver.shapley import IntervalLoader, ValueLoader, VertexRotator
 
 
 def generate_value_function(n: int, upper_gain_limit: int = 5):

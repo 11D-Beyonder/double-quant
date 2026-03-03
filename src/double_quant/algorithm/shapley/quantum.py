@@ -1,8 +1,4 @@
 import numpy as np
-from dataclasses import dataclass
-from itertools import permutations
-from typing import Literal, Protocol
-
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 from qiskit.circuit.library import BlueprintCircuit, StatePreparation, UCRYGate
 from qiskit.primitives import StatevectorSampler
@@ -16,51 +12,14 @@ from qiskit_algorithms import (
     IterativeAmplitudeEstimation,
     MaximumLikelihoodAmplitudeEstimation,
 )
-from scipy import special
 
 from double_quant.common.util import normalize
-
-# Amplitude extraction mode for QuantumCalculator.
-# - "statevector": exact extraction via Statevector simulation (1 oracle call)
-# - "shots": shot-based sampling via StatevectorSampler (oracle calls = shots)
-# - "qae_canonical": canonical QAE using Quantum Phase Estimation
-# - "qae_iqae": Iterative QAE — no ancilla, adaptive Grover iterations
-# - "qae_mlqae": Maximum-Likelihood QAE — multi-depth circuits + MLE post-processing
-ExtractionMode = Literal[
-    "statevector", "shots", "qae_canonical", "qae_iqae", "qae_mlqae", "qae_fae"
-]
-
-
-@dataclass
-class QAEOptions:
-    """Parameters controlling the amplitude extraction strategy of QuantumCalculator.
-
-    Fields are mode-specific; unused fields for a given mode are ignored.
-    """
-
-    # "shots" mode: number of measurement shots
-    shots: int = 1024
-    # All QAE modes: target precision (half confidence-interval width)
-    epsilon: float = 0.01
-    # IQAE / MLQAE: confidence level; probability of exceeding epsilon is <= alpha
-    alpha: float = 0.05
-    # "qae_canonical": number of QPE evaluation qubits; oracle calls ~ 2^num_eval_qubits
-    # "qae_mlqae": evaluation schedule depth; oracle calls ~ 2^num_eval_qubits
-    num_eval_qubits: int = 3
-    # "qae_fae": confidence parameter and max iterations
-    delta: float = 0.05
-    maxiter: int = 5
-
-
-class ValueFunction(Protocol):
-    """Protocol for characteristic value functions used in Shapley calculations.
-
-    Any object implementing ``__getitem__(bitmask: int) -> float`` satisfies
-    this protocol, including plain ``dict[int, int | float]`` instances and
-    custom callable value-function classes.
-    """
-
-    def __getitem__(self, bitmask: int) -> float: ...
+from double_quant.algorithm.shapley.protocol import (
+    ExtractionMode,
+    QAEOptions,
+    ValueFunction,
+)
+from double_quant.algorithm.shapley.calculator import ShapleyCalculator
 
 
 class ControlledBlueprintCircuit(BlueprintCircuit):
@@ -216,124 +175,6 @@ class ValueLoader(ControlledBlueprintCircuit):
             [self.num_control] + list(range(self.num_control)),
             inplace=True,
         )
-
-
-if __name__ == "__main__":
-    # NOTE 低位画在电路图上方。
-    print(IntervalLoader(3).draw())
-    """
-        ┌─────────────────────────────────────────────────────────────────────────────────────┐
-    q_0:┤0                                                                                    ├
-        │                                                                                     │
-    q_1:┤1 State Preparation(0.19509,0.32922,0.40276,0.43743,0.43743,0.40276,0.32922,0.19509) ├
-        │                                                                                     │
-    q_2:┤2                                                                                    ├
-        └─────────────────────────────────────────────────────────────────────────────────────┘
-    """
-    print(VertexRotator(2).draw())
-    """
-       q_0: ────────────────■────────────────
-                            │                
-       q_1: ─────■──────────┼────────────────
-            ┌────┴────┐┌────┴────┐┌─────────┐
-    target: ┤ Ry(π/2) ├┤ Ry(π/4) ├┤ Ry(π/8) ├
-            └─────────┘└─────────┘└─────────┘
-    """
-    print(ValueLoader([1, 2, 3, 4], 2).draw())
-    """
-            ┌───────────────────────┐
-       q_0: ┤1                      ├
-            │                       │
-       q_1: ┤2 Ucry(π/3,π/2,2π/3,π) ├
-            │                       │
-    target: ┤0                      ├
-            └───────────────────────┘
-    """
-
-
-class ShapleyCalculator:
-    """计算 Shapley 值的基类 只需要实现 _calculate_one 方法，该方法计算给定 player 的 Shapley 值。"""
-
-    def __init__(self, num_players: int, value_dict: ValueFunction | None = None):
-        """初始化 Shapley 计算器。
-
-        Args:
-            num_players (int): 玩家数。
-            value_dict (ValueFunction, optional): 子集收益值字典，为 None 时随机生成。
-        """
-        self.num_players = num_players
-
-        self.value_dict = value_dict
-
-        self._shapley_cache: list[float | None] = [None] * num_players
-
-    def _calculate_one(self, target_player: int) -> float:
-        raise NotImplementedError
-
-    def get_one(self, target_player: int) -> float:
-        if self._shapley_cache[target_player] is None:
-            self._shapley_cache[target_player] = self._calculate_one(target_player)
-
-        val = self._shapley_cache[target_player]
-        if val is None:
-            raise RuntimeError(
-                f"Failed to calculate Shapley value for player {target_player}"
-            )
-        return val
-
-    def get_all(self) -> list[float]:
-        return [self.get_one(i) for i in range(self.num_players)]
-
-
-class BinaryEnumerationCalculator(ShapleyCalculator):
-    def __init__(self, num_players: int, value_dict: ValueFunction | None = None):
-        super().__init__(num_players, value_dict)
-        self.__factorial = [1] * (num_players + 1)
-        for i in range(1, num_players + 1):
-            self.__factorial[i] = self.__factorial[i - 1] * i
-
-    def _calculate_one(self, target_player: int):
-        if self.value_dict is None:
-            raise ValueError("value_dict is required")
-
-        contribution = 0
-        for subset in range(2**self.num_players):
-            # NOTE: 枚举不包含 player_index 的子集。
-            if (1 << target_player) & subset:
-                continue
-            subset_size = bin(subset).count("1")
-            weight = (
-                self.__factorial[self.num_players - subset_size - 1]
-                / self.__factorial[self.num_players]
-                * self.__factorial[subset_size]
-            )
-            contribution += weight * (
-                self.value_dict[subset | (1 << target_player)] - self.value_dict[subset]
-            )
-        return contribution
-
-
-class PermutationEnumerationCalculator(ShapleyCalculator):
-    def __init__(self, num_players: int, value_dict: ValueFunction | None = None):
-        super().__init__(num_players, value_dict)
-        self.__weight = special.factorial(self.num_players, exact=True)
-
-    def _calculate_one(self, target_player):
-        if self.value_dict is None:
-            raise ValueError("value_dict is required")
-
-        contribution = 0
-        for subset in permutations(range(self.num_players), self.num_players - 1):
-            bin_pre = 0
-            for idx in subset:
-                if idx == target_player:
-                    break
-                bin_pre |= 1 << idx
-            contribution += (
-                self.value_dict[bin_pre | (1 << target_player)]
-                - self.value_dict[bin_pre]
-            ) / self.__weight
-        return contribution
 
 
 class QuantumCalculator(ShapleyCalculator):
@@ -517,72 +358,3 @@ class QuantumCalculator(ShapleyCalculator):
 
         self._oracle_call_counts[player_index] = count
         return value
-
-
-class PermutationMCCalculator(ShapleyCalculator):
-    """Classic Monte Carlo Shapley estimator using permutation sampling.
-
-    Implements the algorithm from Castro et al. (2009):
-    φ̂_i = (1/T) Σ_{t=1}^T [v(P_i^t ∪ {i}) - v(P_i^t)]
-
-    where P_i^t is the set of players preceding i in the t-th random permutation.
-    """
-
-    def __init__(
-        self,
-        num_players: int,
-        value_dict: ValueFunction | None = None,
-        num_samples: int = 100,
-        seed: int | None = None,
-    ):
-        super().__init__(num_players, value_dict)
-        self.num_samples = num_samples
-        self.rng = np.random.default_rng(seed)
-
-    def _calculate_one(self, target_player: int) -> float:
-        if self.value_dict is None:
-            raise ValueError("value_dict is required")
-
-        contribution = 0.0
-        for _ in range(self.num_samples):
-            # Generate random permutation
-            perm = list(range(self.num_players))
-            self.rng.shuffle(perm)
-
-            # Find position of target player and compute marginal contribution
-            precedent_mask = 0
-            for p in perm:
-                if p == target_player:
-                    break
-                precedent_mask |= 1 << p
-
-            # v(S ∪ {i}) - v(S)
-            with_player = precedent_mask | (1 << target_player)
-            contribution += self.value_dict[with_player] - self.value_dict[precedent_mask]
-
-        return contribution / self.num_samples
-
-    def get_oracle_count(self, player_index: int) -> int:
-        """Each sample requires 2 value function lookups."""
-        return self.num_samples * 2
-
-
-"""
-QuantumCalculator
-
-n+1
-
-A, B, C, D
-
-0000 a[0]
-A 0001 a[1]
-B 0010 a[2]
-AB 0011 a[3]
-
-50% A 50%B AB
-
-[A,B,C,D,...]
-
-输入：2^(n+1) 维的向量 [000,01,010,...,2^(n+1)-1]
-输出：第i个标的的夏普利值 get_one(i)
-"""

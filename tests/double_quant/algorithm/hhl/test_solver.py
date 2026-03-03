@@ -9,7 +9,7 @@ from qiskit.circuit.library import (
 from qiskit.quantum_info import Statevector
 from double_quant.common import LinearSystem
 from double_quant.common.metric import cos_similarity
-from double_quant.solver import QuantumLinearSolver
+from double_quant.algorithm.hhl import HHLSolver
 
 
 class TestHhlQubitOrder:
@@ -59,8 +59,8 @@ class TestHhlQubitOrder:
         print(Statevector.from_circuit(circuit).probabilities_dict([5]))
 
 
-class TestQuantumLinearSolver:
-    """Test cases for QuantumLinearSolver."""
+class TestHHLSolver:
+    """Test cases for HHLSolver."""
 
     def test_basic_solve_sapo_method(self):
         """Test quantum solver with SAPO method on simple system."""
@@ -72,7 +72,7 @@ class TestQuantumLinearSolver:
             count += (
                 cos_similarity(
                     np.linalg.solve(system.matrix, system.vector),
-                    QuantumLinearSolver.solve(system.matrix, system.vector),
+                    HHLSolver.solve(system.matrix, system.vector),
                 )
                 >= 0.5
             )

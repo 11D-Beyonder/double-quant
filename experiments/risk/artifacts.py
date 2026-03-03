@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import json
 
-from double_quant.data.time_series import from_yfinance
+from double_quant.data.source import YFinanceSource
 
 
 QUANTUM_COMPARISON_FILES = [f"quantum_comparison_n{n}.csv" for n in (3, 4, 5, 6)]
@@ -35,7 +35,7 @@ class ArtifactPaths:
 
 def get_artifact_paths() -> ArtifactPaths:
     return ArtifactPaths(
-        cache_dir=Path("tests/double_quant/application/cache"),
+        cache_dir=Path("experiments/risk/cache"),
         snapshot_dir=Path("docs/assets/risk/data"),
         figure_dir=Path("docs/assets/risk"),
     )
@@ -64,7 +64,7 @@ def write_manifest(
 
 
 class DataPreparation:
-    def __init__(self, data_dir: str | Path = "tests/double_quant/application/cache"):
+    def __init__(self, data_dir: str | Path = "experiments/risk/cache"):
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.file_path = self.data_dir / "experiment_data_clean.csv"
@@ -210,4 +210,6 @@ class DataPreparation:
         use_cache: bool = True,
     ):
         cache_path = str(self.file_path) if use_cache else None
-        return from_yfinance(self.get_tickers(), start, end, cache_path=cache_path)
+        return YFinanceSource(cache_path=cache_path).fetch(
+            self.get_tickers(), start, end
+        )
