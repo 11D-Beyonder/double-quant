@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol, final
+from typing import Literal, Protocol, final
 
 import numpy as np
 import scipy as sp
@@ -9,32 +9,7 @@ from qiskit import QuantumCircuit, QuantumRegister
 from qiskit.circuit.library import StatePreparation, UCRYGate, phase_estimation
 from qiskit.quantum_info import Statevector
 
-from .sapo import SAPO
-
-
-@dataclass(frozen=True)
-class PreparedSystem:
-    """
-    Prepared linear system and strategy-owned context.
-
-    This dataclass holds the preprocessed matrix, vector, and any
-    strategy-specific context needed for the HHL algorithm.
-    """
-
-    matrix: np.ndarray
-    vector: np.ndarray
-    ctx: Any
-
-
-class RotationSpec(Protocol):
-    """
-    Protocol for providing controlled-rotation angles in HHL circuits.
-
-    Different rotation strategies implement this protocol to convert
-    phase estimates into rotation angles for amplitude loading.
-    """
-
-    def to_angles(self, num_phase_qubits: int) -> list[float]: ...
+from .variants import EigenBasedStrategy
 
 
 @dataclass(frozen=True)
@@ -49,7 +24,7 @@ class HHLRuntimeParams:
     num_qpe_qubits: int
     norm_const: float
     qpe_evolution_time: float
-    controlled_rotation: RotationSpec
+    ucry_angles: list[float]
 
 
 class HHLStrategy(Protocol):
@@ -64,13 +39,11 @@ class HHLStrategy(Protocol):
 
     def pre_processing(
         self, matrix: np.ndarray, vector: np.ndarray
-    ) -> PreparedSystem: ...
+    ) -> tuple[np.ndarray, np.ndarray]: ...
 
-    def allocate_params(
-        self, prepared: PreparedSystem, *, epsilon: float = 1 / 8
-    ) -> HHLRuntimeParams: ...
+    def allocate_params(self, *, epsilon: float = 1 / 8) -> HHLRuntimeParams: ...
 
-    def post_processing(self, raw_solution: np.ndarray, *, ctx) -> np.ndarray: ...
+    def post_processing(self, raw_solution: np.ndarray) -> np.ndarray: ...
 
 
 @final
@@ -132,8 +105,9 @@ class _HhlCircuit(QuantumCircuit):
 
 
 def _construct_circuit(
-    prepared,
-    params,
+    matrix: np.ndarray,
+    vector: np.ndarray,
+    params: HHLRuntimeParams,
     *,
     max_qpe_qubits: int = 8,
 ) -> _HhlCircuit:
@@ -154,30 +128,27 @@ def _construct_circuit(
     Returns:
         _HhlCircuit: The complete HHL quantum circuit
     """
-    num_vector_qubits = int(np.log2(prepared.matrix.shape[0]))
+    num_vector_qubits = int(np.log2(matrix.shape[0]))
 
-    num_phase_qubits = min(params.qpe_qubits, max_qpe_qubits)
+    num_phase_qubits = min(params.num_qpe_qubits, max_qpe_qubits)
 
     vector_reg = QuantumRegister(num_vector_qubits, name="vector")
     phase_reg = QuantumRegister(num_phase_qubits, name="phase")
     flag_reg = QuantumRegister(1, name="flag")
 
     vector_circuit = QuantumCircuit(vector_reg.size, name="State Preparation")
-    vector_circuit.append(
-        StatePreparation(prepared.vector.tolist()), vector_circuit.qubits
-    )
+    vector_circuit.append(StatePreparation(vector.tolist()), vector_circuit.qubits)
 
     matrix_circuit = QuantumCircuit(vector_reg.size, name="U")
     matrix_circuit.unitary(
-        sp.linalg.expm(1j * prepared.matrix * params.evolution_time),
+        sp.linalg.expm(1j * matrix * params.qpe_evolution_time),
         matrix_circuit.qubits,
     )
 
     qpe_circuit = phase_estimation(num_phase_qubits, matrix_circuit)
 
     ucry_circuit = QuantumCircuit(num_phase_qubits + 1)
-    angles = params.rotation_spec.to_angles(num_phase_qubits)
-    ucry_circuit.compose(UCRYGate(angles), inplace=True)
+    ucry_circuit.compose(UCRYGate(params.ucry_angles), inplace=True)
 
     hhl_circuit = _HhlCircuit(
         vector_reg,
@@ -286,10 +257,10 @@ class HHLSolver:
                     "leave method='sapo' when passing transform_strategy"
                 )
             else:
-                transform_strategy = SAPO()
-        prepared = transform_strategy.pre_processing(matrix, vector)
-        params = transform_strategy.allocate_params(prepared, epsilon=epsilon)
+                transform_strategy = EigenBasedStrategy(matrix, vector)
+        preprocessed_system = transform_strategy.pre_processing(matrix, vector)
+        params = transform_strategy.allocate_params(epsilon=epsilon)
 
-        circuit = _construct_circuit(prepared, params)
+        circuit = _construct_circuit(*preprocessed_system, params)
         raw_solution = _extract_transformed_solution_by_statevector(circuit)
-        return transform_strategy.post_processing(raw_solution, ctx=prepared.ctx)
+        return transform_strategy.post_processing(raw_solution)

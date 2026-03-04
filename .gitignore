@@ -25,3 +25,4 @@ experiments/**/cache/
 # Claude Code
 .claude/
 
+.help/

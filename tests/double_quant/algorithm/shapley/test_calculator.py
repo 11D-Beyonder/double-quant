@@ -13,7 +13,7 @@ from double_quant.algorithm.shapley import (
     BinaryEnumerationCalculator,
     IntervalLoader,
     PermutationEnumerationCalculator,
-    QuantumCalculator,
+    QuantumShapleyCaculator,
     ValueLoader,
     VertexRotator,
 )
@@ -101,7 +101,7 @@ class TestCalculator:
             data = generate_value_function(n)
             res1 = PermutationEnumerationCalculator(n, data).get_all()
             res2 = BinaryEnumerationCalculator(n, data).get_all()
-            res3 = QuantumCalculator(n, data, internal_multiplier=3).get_all()
+            res3 = QuantumShapleyCaculator(n, data, internal_multiplier=3).get_all()
             assert np.allclose(res1, res2, 1.0e-5, 1.0e-8)
             assert np.allclose(res2, res3, 1.0e-3, 1.0e-2)
 

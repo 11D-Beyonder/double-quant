@@ -6,10 +6,10 @@ from double_quant.algorithm.shapley import (
     PermutationEnumerationCalculator,
     PermutationMCCalculator,
     QAEOptions,
-    QuantumCalculator,
+    QuantumShapleyCaculator,
     ShapleyCalculator,
 )
-from double_quant.application.risk import RiskAttributor
+from double_quant.application import RiskAttributor, PortfolioOptimizer
 from double_quant.data.source import PriceSource, YFinanceSource
 from double_quant.data.transform import (
     to_covariance,
@@ -28,7 +28,8 @@ __all__ = [
     "BinaryEnumerationCalculator",
     "PermutationEnumerationCalculator",
     "PermutationMCCalculator",
-    "QuantumCalculator",
+    "QuantumShapleyCaculator",
     "QAEOptions",
     "RiskAttributor",
+    "PortfolioOptimizer",
 ]

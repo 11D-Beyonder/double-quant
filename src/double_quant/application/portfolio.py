@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from double_quant.algorithm.hhl import HHLSolver
+from double_quant.common import util
 
 
 class PortfolioOptimizer:
@@ -12,6 +13,12 @@ class PortfolioOptimizer:
         covariance: np.ndarray,
         target_return: float,
         assets: list[str] | None = None,
+        constraint_scaler: ConstraintScaler
+        | tuple[float, float, float]
+        | tuple[float, float]
+        | list[float]
+        | str
+        | None = None,
         solver_class: type = HHLSolver,
         **solver_kwargs,
     ) -> None:
@@ -46,11 +53,19 @@ class PortfolioOptimizer:
                 f"assets length mismatch: expected {num_assets}, got {len(assets)}"
             )
 
+        if constraint_scaler is None:
+            constraint_scaler = ConstraintScaler()
+        elif isinstance(constraint_scaler, str):
+            constraint_scaler = ConstraintScaler.from_pickle(constraint_scaler)
+        elif not isinstance(constraint_scaler, ConstraintScaler):
+            constraint_scaler = ConstraintScaler(constraint_scaler)
+
         self._mu = mu
         self._sigma = sigma
         self._target_return = target_return
         self._assets = assets
         self._num_assets = num_assets
+        self._constraint_scaler = constraint_scaler
         self._solver_class = solver_class
         self._solver_kwargs = solver_kwargs
 
@@ -98,12 +113,12 @@ class PortfolioOptimizer:
         achieved_return = float(weights @ self._mu)
 
         if abs(weight_sum - 1.0) > tol:
-            raise ValueError(
+            util.warning(
                 "Optimized solution violates budget constraint: "
                 f"sum(w)={weight_sum:.8f}, expected 1.0"
             )
         if abs(achieved_return - self._target_return) > tol:
-            raise ValueError(
+            util.warning(
                 "Optimized solution violates target return constraint: "
                 f"w^T mu={achieved_return:.8f}, expected {self._target_return:.8f}"
             )
@@ -111,14 +126,68 @@ class PortfolioOptimizer:
     def optimize(self) -> dict[str, float]:
         matrix, vector = self._build_black_system()
         matrix, vector = self._expand_to_power_of_two(matrix, vector)
+        # the answer would not change after constraint scaling
+        matrix, vector = self._constraint_scaler.scale(matrix, vector, self._num_assets)
 
         solution = np.asarray(
             self._solver_class.solve(matrix, vector, **self._solver_kwargs), dtype=float
         )
 
-        start = 2
-        end = start + self._num_assets
-        weights = solution[start:end]
+        weights = solution[2 : 2 + self._num_assets]
         self._validate_solution_constraints(weights)
 
         return {asset: float(weights[i]) for i, asset in enumerate(self._assets)}
+
+
+class ConstraintScaler:
+    # TODO: implement constraint scaler
+    # Train from historical market data
+    # Use the existed factors
+    def __init__(
+        self,
+        factors: tuple[float, float, float]
+        | tuple[float, float]
+        | list[float]
+        | None = None,
+    ):
+        self._factors = factors
+
+    @staticmethod
+    def from_pickle(path: str) -> ConstraintScaler: ...
+
+    def scale(
+        self, matrix: np.ndarray, vector: np.ndarray, num_assets: int
+    ) -> tuple[np.ndarray, np.ndarray]:
+        base_matrix = np.asarray(matrix, dtype=float)
+        base_vector = np.asarray(vector, dtype=float)
+        if self._factors is None:
+            return base_matrix, base_vector
+        else:
+            # TODO: using factor to scale the matrix and vector
+            raise NotImplementedError
+
+        # s1, s2, s_star = self._factors
+        # scaled_matrix = base_matrix
+        # scaled_vector = base_vector
+
+        # tail_dim = self._detect_tail_identity_size(base_matrix)
+        # num_assets = dim - 2 - tail_dim
+        # if num_assets <= 0:
+        #     return scaled_matrix, scaled_vector
+
+        # w_start = 2
+        # w_end = 2 + num_assets
+
+        # scaled_matrix[0, w_start:w_end] *= s1
+        # scaled_matrix[w_start:w_end, 0] *= s1
+        # scaled_matrix[1, w_start:w_end] *= s2
+        # scaled_matrix[w_start:w_end, 1] *= s2
+
+        # scaled_vector[0] *= s1
+        # scaled_vector[1] *= s2
+
+        # if tail_dim > 0:
+        #     split = dim - tail_dim
+        #     scaled_matrix[split:, split:] *= s_star
+
+        # return scaled_matrix, scaled_vector

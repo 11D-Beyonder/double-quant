@@ -12,7 +12,7 @@ from double_quant.algorithm.shapley.calculator import (
     PermutationMCCalculator,
 )
 from double_quant.algorithm.shapley.quantum import (
-    QuantumCalculator,
+    QuantumShapleyCaculator,
     IntervalLoader,
     VertexRotator,
     ValueLoader,
@@ -26,7 +26,7 @@ __all__ = [
     "BinaryEnumerationCalculator",
     "PermutationEnumerationCalculator",
     "PermutationMCCalculator",
-    "QuantumCalculator",
+    "QuantumShapleyCaculator",
     "IntervalLoader",
     "VertexRotator",
     "ValueLoader",
