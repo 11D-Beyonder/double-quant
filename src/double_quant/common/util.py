@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import rich
 
 
 def normalize(x: np.ndarray, denominator="max"):
@@ -40,3 +41,7 @@ def divide_by_volatility(returns: pd.DataFrame, split_points: list):
         groups.append(volatilities.index[binned == i].tolist())
 
     return groups
+
+
+def warning(msg: str):
+    rich.print(f":warning:{msg}")

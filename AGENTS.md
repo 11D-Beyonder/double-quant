@@ -107,3 +107,4 @@ Split into three sub-modules (`protocol.py`, `calculator.py`, `quantum.py`):
 - **Type hints**: Full type hints throughout; `py.typed` marker present.
 - **Linting**: `ruff`.
 - **Library docs**: Always use Context7 MCP for Qiskit / scipy / other library documentation without being asked.
+- **Help docs**: The plans for coding and some references must be create in `.help/`
