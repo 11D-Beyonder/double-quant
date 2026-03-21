@@ -99,10 +99,10 @@ returns_df = to_log_returns(prices)
 在当前实现里：
 
 - `mode="es"`：直接以 Expected Shortfall 作为价值函数
-- `mode="rs"`：使用 Risk Saving 变换后的价值函数
+- `mode="rs"`：使用 Risk Saving 变换后的价值函数，量子算法必须用这个。
 - `alpha=0.95`：表示计算 95% 置信水平下的 ES
 
-`solver_class=BinaryEnumerationCalculator` 表示使用经典精确算法进行 Shapley Value 计算，适合作为最直接的入门方式。
+`solver_class=BinaryEnumerationCalculator` 表示使用经典精确算法进行 Shapley Value 计算，适合作为最直接的入门方式。量子算法用 `QuantumShapleyCalculator`。
 
 ## 4. 如果你想跳过某些步骤
 
