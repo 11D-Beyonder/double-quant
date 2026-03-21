@@ -22,7 +22,7 @@ uv.lock
 tests/**/cache/
 experiments/**/cache/
 
-# Claude Code
+# AI
 .claude/
-
 .help/
+.agents/
