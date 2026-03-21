@@ -2,7 +2,8 @@
 
 from typing import Protocol
 import numpy as np
-from .solver import HHLStrategy, HHLRuntimeParams
+
+from .types import HHLRuntimeParams, HHLStrategy
 
 
 class EigenPredictor(Protocol):

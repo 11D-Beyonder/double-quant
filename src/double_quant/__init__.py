@@ -9,7 +9,7 @@ from double_quant.algorithm.shapley import (
     QuantumShapleyCaculator,
     ShapleyCalculator,
 )
-from double_quant.application import RiskAttributor, PortfolioOptimizer
+from double_quant.application import RiskAttributor
 from double_quant.data.source import PriceSource, YFinanceSource
 from double_quant.data.transform import (
     to_covariance,
@@ -31,5 +31,4 @@ __all__ = [
     "QuantumShapleyCaculator",
     "QAEOptions",
     "RiskAttributor",
-    "PortfolioOptimizer",
 ]
