@@ -1,155 +1,143 @@
-![](docs/assets/logo.png)
+![Double Quant logo](https://raw.githubusercontent.com/11D-Beyonder/double-quant/main/docs/assets/logo.png)
 
 <div align="center">
 <h1>
-<em>Quant</em>um  
+<em>Quant</em>um
 <em>Quant</em>itative
 </h1>
 </div>
 <br>
 
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
-[![GitHub License](https://img.shields.io/github/license/11D-Beyonder/double-quant)
-](LICENSE)
+[![GitHub License](https://img.shields.io/github/license/11D-Beyonder/double-quant)](LICENSE)
 
 # Double Quant
 
-**Double Quant** - A high-performance quantum computing framework for solving quantitative finance problems.
+**Double Quant** is a Python library for quantitative finance workflows built around quantum-inspired and quantum-backed algorithms.
 
-## 🌟 Overview
+## Overview
 
-Double Quant is a framework that bridges quantum computing and quantitative finance. By leveraging quantum algorithms and advanced optimization techniques, it provides efficient solutions to complex financial computational problems.
+Double Quant bridges quantum computing and quantitative finance with reusable data transforms, HHL-based solvers, Shapley-value algorithms, and higher-level portfolio and risk applications.
 
 ### Key Features
 
-- **🚀 Optimized Quantum Solvers**: State-of-the-art quantum solvers, including lots of bottom-level optimization algorithms.
-- **🎯 Three-Layer Architecture**: Clean separation of concerns with Data → Solver → Application layers.
-- **📊 Type-Safe Design**: Full type hints support for better IDE integration and code reliability.
-- **🔧 Easy to Use**: Intuitive API design that makes quantum finance accessible to practitioners.
-- **⚙️ Modular Structure**: Flexible components that can be combined for various financial applications.
+- Quantum-aware algorithms for linear solving and Shapley attribution
+- Layered package design across data, common utilities, algorithms, and applications
+- Full type hints for stronger IDE support and safer integrations
+- Portfolio and risk workflows built on top of reusable primitives
+- Experiment-friendly components that can be composed outside the core package
 
-## 🏗️ Architecture
+## Architecture
 
-Double Quant follows a well-designed three-layer architecture:
+Double Quant is organized as a four-part package:
 
-```
-┌─────────────────────────────────────┐
-│         Application Layer           │
-│      (Portfolio, Pricing, ...)      │
-└─────────────────────────────────────┘
-                  ↓
-┌─────────────────────────────────────┐
-│           Solver Layer              │
-│             (VQA, HHL, ...)         │
-└─────────────────────────────────────┘
-                  ↓
-┌─────────────────────────────────────┐
-│            Data Layer               │
-│        (Stock data, ...)            │
-└─────────────────────────────────────┘
+```text
+double_quant.data
+double_quant.common
+double_quant.algorithm
+double_quant.application
 ```
 
 ### Layer Responsibilities
 
-- **Data Layer** (`double_quant.common`): Core data structures and utilities.
+- **Data layer** (`double_quant.data`): price sources and transforms from prices to returns, covariances, and expected returns
+- **Common layer** (`double_quant.common`): shared models and metrics such as `LinearSystem` and risk helpers
+- **Algorithm layer** (`double_quant.algorithm`): HHL solver variants plus classical and quantum Shapley calculators
+- **Application layer** (`double_quant.application`): higher-level workflows such as portfolio optimization and risk attribution
 
-- **Solver Layer** (`double_quant.solver`): Quantum algorithms and solvers.
-
-- **Application Layer**: High-level financial applications
-  - Portfolio optimization
-  - Option pricing
-  - Risk analysis
-  - (More coming soon...)
-
-## 📦 Installation
-
-### Prerequisites
+## Installation
 
 - Python 3.11 or higher
-- [uv](https://github.com/astral-sh/uv) package manager (recommended)
 
-### Install with uv (Recommended)
+### Install from PyPI with uv
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/double-quant.git
-cd double-quant
-
-# Install dependencies
-uv sync
+uv add double-quant
 ```
 
 ### Install with pip
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/double-quant.git
-cd double-quant
-
-# Install in development mode
-pip install -e .
+pip install double-quant
 ```
 
-## 🚀 Quick Start
+### Install from source for development
+
+```bash
+git clone https://github.com/11D-Beyonder/double-quant.git
+cd double-quant
+uv sync
+```
+
+## Quick Start
 
 ### Example: Solving a Linear System
 
 ```python
-from double_quant import LinearSystem, QuantumLinearSolver
+import numpy as np
 
-# Define a linear system Ax = b
-A = [[4, 1], [1, 3]]
-b = [1, 2]
+from double_quant import HHLSolver
 
-# Create a linear system model
-system = LinearSystem(A, b)
+A = np.array([[2.0, 1.0], [1.0, 2.0]])
+b = np.array([1.0, 1.0])
 
-# Initialize quantum solver
-solver = QuantumLinearSolver()
-
-# Solve the system
-solution = solver.solve(system)
-
-print(f"Solution: {solution}")
+solution = HHLSolver.solve(A, b)
+print(solution)
 ```
 
-### Example: Using SAPO Optimizer
+### Example: Classical Risk Attribution
 
 ```python
-from double_quant import SAPO, LinearSystem
-from double_quant.solver import QuantumLinearSolver
+import pandas as pd
 
-# Create a linear system
-system = LinearSystem([[2, 1], [1, 2]], [1, 1])
+from double_quant import BinaryEnumerationCalculator, RiskAttributor
 
-# Use SAPO optimizer for better performance
-optimizer = SAPO()
-solver = QuantumLinearSolver(optimizer=optimizer)
+returns = pd.DataFrame(
+    {
+        "AAPL": [0.01, -0.03, 0.02, 0.015],
+        "MSFT": [0.008, -0.01, 0.018, 0.012],
+        "TLT": [0.002, 0.001, -0.002, 0.003],
+    }
+)
 
-# Solve with optimization
-solution = solver.solve(system)
+src = RiskAttributor(
+    returns,
+    BinaryEnumerationCalculator,
+    alpha=0.95,
+    mode="es",
+).attribute()
+
+print(src)
 ```
 
-## 🔬 Core Components
+## Core Components
 
-### Quantum Linear Solver
+### HHL Solver
 
-The `QuantumLinearSolver` implements the HHL (Harrow-Hassidim-Lloyd) algorithm, one of the most important quantum algorithms for solving linear systems exponentially faster than classical methods.
+`HHLSolver` is the main entry point for solving Hermitian linear systems with the project's HHL-based workflow.
 
-## 📚 Documentation
+### Shapley Calculators
 
-For detailed documentation, API reference, and tutorials, visit our [documentation site](https://docs.double-quant.io) (coming soon).
+Double Quant includes exact, Monte Carlo, and quantum Shapley-value calculators for attribution problems.
 
-## 🛠️ Development
+### Risk Attribution
+
+`RiskAttributor` supports both direct expected-shortfall attribution (`mode="es"`) and the quantum-compatible risk-saving formulation (`mode="rs"`).
+
+## Documentation
+
+Project documentation lives in the [`docs/`](docs/) directory, including:
+
+- [`docs/application/risk.md`](docs/application/risk.md)
+- [`docs/solver/shapley.md`](docs/solver/shapley.md)
+- [`docs/experiments/risk.md`](docs/experiments/risk.md)
+
+## Development
 
 ### Running Tests
 
 ```bash
-# Run all tests
 uv run pytest
-
-# Run with coverage
-uv run pytest --cov=double_quant
 ```
 
 ### Building the Package
@@ -160,11 +148,11 @@ uv build
 
 ### Code Style
 
-This project follows ruff guidelines and uses type hints throughout.
+This project uses `ruff` for linting and `basedpyright` for type checking.
 
-## 🤝 Contributing
+## Contributing
 
-We welcome contributions! Whether it's bug reports, feature requests, or code contributions, please feel free to get involved.
+We welcome contributions. If you would like to contribute:
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
@@ -176,7 +164,7 @@ We welcome contributions! Whether it's bug reports, feature requests, or code co
 
 We follow the Angular commit message convention:
 
-```
+```text
 <type>(<scope>): <description>
 
 [optional body]
@@ -186,24 +174,13 @@ We follow the Angular commit message convention:
 
 **Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
-## 📄 License
+## License
 
-This project is licensed under the GPLv3 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GPLv3. See [LICENSE](LICENSE) for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 This project draws inspiration from:
 
-- [Qiskit](https://github.com/Qiskit/qiskit) - Open-source quantum computing framework.
-- [Qiskit Finance](https://github.com/qiskit-community/qiskit-finance) - Quantum algorithms for finance and its architecture.
-
-## 🗺️ Roadmap
-
-- [x] Core linear system solver with HHL algorithm
-- [ ] Portfolio optimization applications
-- [ ] Option pricing modules
-- [ ] Risk analysis tools
-- [ ] Integration with major quantum computing platforms
-- [ ] Comprehensive documentation and tutorials
-- [ ] Performance benchmarks
-- [ ] Real-world case studies
+- [Qiskit](https://github.com/Qiskit/qiskit)
+- [Qiskit Finance](https://github.com/qiskit-community/qiskit-finance)

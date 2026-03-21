@@ -1,9 +1,32 @@
 [project]
 name = "double-quant"
-version = "0.1.0"
-description = "Quantum quantitive finance"
+version = "0.0.1a1"
+description = "Quantum-inspired quantitative finance workflows and algorithms"
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [{ name = "11D-Beyonder" }]
+license = { file = "LICENSE" }
+keywords = [
+    "finance",
+    "hhl",
+    "qiskit",
+    "quantitative-finance",
+    "quantum-computing",
+    "shapley-value",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Office/Business :: Financial",
+]
 dependencies = [
     "matplotlib>=3.10.8",
     "pandas>=3.0.0",
@@ -12,9 +35,14 @@ dependencies = [
     "qiskit-aer>=0.17.2",
     "qiskit-algorithms>=0.4.0",
     "rich>=14.3.3",
-    "scipy-stubs[scipy]>=1.16.3.0",
+    "scipy>=1.16.3",
     "yfinance>=1.1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/11D-Beyonder/double-quant"
+Repository = "https://github.com/11D-Beyonder/double-quant"
+Issues = "https://github.com/11D-Beyonder/double-quant/issues"
 
 
 [build-system]
@@ -29,11 +57,18 @@ dev = [
     "basedpyright>=1.38.2",
     "pytest>=8.4.2",
     "ruff>=0.15.4",
+    "scipy-stubs>=1.16.3.0",
     "seaborn>=0.13.2",
 ]
 
 [tool.pyright]
 typeCheckingMode = "basic"
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -1,19 +1,38 @@
 # Double Quant Context
 
+## Source Of Truth
+
+- Prefer `src/double_quant/**` and active test files over `README.md` when they disagree.
+- `README.md` still contains stale API names such as `QuantumLinearSolver` and `double_quant.solver`.
+- `docs/application/risk.md` is aligned with the current risk-attribution design.
+- `docs/solver/shapley.md` is useful for theory, but some import-path examples are stale, so cross-check with `src/`.
+- `docs/experiments/risk.md` is the best reference for experiment workflows, artifact names, and output locations.
+
 ## Commands
 
 ```bash
 # Install dependencies
 uv sync
 
+# Build the package
+uv build
+
+# Lint
+uv run ruff check .
+
+# Type check
+uv run basedpyright
+
 # Run all tests (only when user requests)
-uv run pytest -s -v
+uv run pytest
 
 # Run a single test file
-uv run pytest tests/double_quant/algorithm/shapley/test_calculator.py -s -v
+uv run pytest tests/double_quant/algorithm/shapley/test_calculator.py
+uv run pytest tests/double_quant/algorithm/hhl/test_solver.py
+uv run pytest tests/double_quant/application/test_risk.py
 
 # Run with coverage
-uv run pytest --cov=double_quant -s -v
+uv run pytest --cov=double_quant
 
 # Add a runtime dependency
 uv add <package>
@@ -21,11 +40,14 @@ uv add <package>
 # Add a dev-only dependency
 uv add --dev <package>
 
-# Build
-uv build
-
 # Run experiment artifact generation
 uv run python -m experiments.risk.generate_artifacts
+
+# Run a single experiment
+uv run python -m experiments.risk.generate_artifacts -e volatility
+
+# Force regeneration of experiment artifacts
+uv run python -m experiments.risk.generate_artifacts --force
 
 # Plot from experiment artifacts
 uv run python -m experiments.risk.plot_from_artifacts
@@ -33,78 +55,149 @@ uv run python -m experiments.risk.plot_from_artifacts
 
 **Do not run tests unless the user explicitly requests it.**
 
+**Some tests and experiment workflows may hit the network through `yfinance` if cache files are missing.**
+
 ## Project Overview
 
-**Double Quant** is a high-performance quantum computing framework for quantitative finance — bridging quantum algorithms (HHL, QAE) with financial applications (portfolio risk attribution) using a layered architecture.
+**Double Quant** is a Python 3.11+ framework for quantitative finance experiments built around quantum-inspired and quantum-backed workflows. The live codebase is organized as a four-part package:
 
-**Key Technologies:**
+- `double_quant.data`
+- `double_quant.common`
+- `double_quant.algorithm`
+- `double_quant.application`
+
+There is also a real experiment pipeline under `experiments/risk/` that generates CSV artifacts and plots into `docs/assets/risk/`.
+
+**Key technologies:**
+
 - **Language:** Python 3.11+
-- **Quantum Stack:** Qiskit, Qiskit Aer, qiskit-algorithms
-- **Math/Data:** Scipy, NumPy, Pandas, yfinance
-- **Package Manager:** `uv`
-- **Build System:** `hatchling`
+- **Quantum stack:** Qiskit, Qiskit Aer, qiskit-algorithms
+- **Math/data:** NumPy, Pandas, SciPy, matplotlib, seaborn, yfinance
+- **Package manager:** `uv`
+- **Build system:** `hatchling`
+- **Lint/type check:** `ruff`, `basedpyright`
 
 ## Architecture
 
-Four-layer architecture (`src/double_quant/`):
+```
+Data Layer         -> double_quant.data
+Common Layer       -> double_quant.common
+Algorithm Layer    -> double_quant.algorithm
+Application Layer  -> double_quant.application
+Experiments        -> experiments.risk
+```
 
-```
-Data Layer         →  double_quant.data            (sources, transforms)
-Common Layer       →  double_quant.common          (LinearSystem, metrics, utils)
-Algorithm Layer    →  double_quant.algorithm        (HHL, Shapley calculators)
-Application Layer  →  double_quant.application     (risk attribution)
-```
+### Package map
+
+**`double_quant.data`**
+- `source.py`: price-source protocol and Yahoo Finance implementation
+- `transform.py`: close-price to return / covariance / expected-return helpers
+
+**`double_quant.common`**
+- `model.py`: `LinearSystem`
+- `metric.py`: `expected_shortfall`, `cos_similarity`, `annualized_volatility`
+- `util.py`: `normalize`, `divide_by_volatility`, warning helpers
+
+**`double_quant.algorithm.hhl`**
+- `solver.py`: `HHLSolver`
+- `variants.py`: HHL transform strategies, including the current SAPO-style path
+
+**`double_quant.algorithm.shapley`**
+- `protocol.py`: `ValueFunction`, `ExtractionMode`, `QAEOptions`
+- `calculator.py`: classical exact and Monte Carlo Shapley solvers
+- `quantum.py`: quantum Shapley circuit builders and `QuantumShapleyCaculator`
+
+**`double_quant.application`**
+- `risk.py`: expected-shortfall risk attribution
+- `portfolio.py`: HHL-backed portfolio optimizer
+
+**`experiments.risk`**
+- `artifacts.py`: data preparation and artifact-path helpers
+- `generate_artifacts.py`: writes experiment CSV snapshots
+- `plot_from_artifacts.py`: renders PNG figures from snapshots
 
 ### Key modules
 
 **`double_quant.data.source`**
-- `PriceSource` (protocol): Interface for price data providers. Implementations return a DataFrame with `DatetimeIndex`, columns=tickers, values=close prices.
-- `YFinanceSource`: Yahoo Finance data source with optional CSV caching. `YFinanceSource(cache_path=...).fetch(tickers, start, end)`.
+- `PriceSource` is a protocol returning a `DataFrame` with `DatetimeIndex`, `columns=tickers`, and close-price values.
+- `YFinanceSource(cache_path=...).fetch(tickers, start, end)` optionally reads from or writes to a CSV cache.
+- Downloaded data is cleaned by dropping columns with too many missing values, forward-filling, and removing remaining NaNs.
 
 **`double_quant.data.transform`**
-- `to_log_returns(prices)`: Close prices to log returns DataFrame.
-- `to_covariance(prices)`: Close prices to covariance matrix of log returns.
-- `to_expected_returns(prices)`: Close prices to mean log return vector.
+- `to_log_returns(prices)`: close prices to log-return `DataFrame`
+- `to_covariance(prices)`: close prices to covariance matrix
+- `to_expected_returns(prices)`: close prices to mean log-return vector
 
-**`double_quant.common`**
-- `LinearSystem`: Core model for `Ax = b`. Handles scaling for quantum algorithms. Use `LinearSystem.random_for_hhl(n)` to generate test systems. Matrix must be symmetric for HHL.
-- `metric`: `expected_shortfall(returns, alpha)`, `cos_similarity(x, y)`, `annualized_volatility`
-- `util`: `normalize`
-
-**`double_quant.algorithm.hhl.sapo`**
-- `SAPO`: Scales the linear system by `0.5 / max_eigenvalue` and computes QPE qubit count via `get_qpe_qubit_num()`. Used internally by `HHLSolver`.
+**`double_quant.common.model`**
+- `LinearSystem` is the core `Ax = b` container used around HHL workflows.
+- `LinearSystem.random_for_hhl(n)` creates a symmetric random system for tests and experiments.
+- Non-symmetric matrices only trigger a warning; they are not blocked automatically.
 
 **`double_quant.algorithm.hhl`**
-- `HHLSolver.solve(matrix, vector)`: Static method solving `Ax = b` via the HHL quantum algorithm with SAPO optimization. Uses statevector simulation.
+- `HHLSolver.solve(matrix, vector, transform_strategy="sapo")` is the main entry point.
+- There is no live `double_quant.algorithm.hhl.sapo` source module in this repo.
+- The current `"sapo"` behavior is resolved inside `HHLSolver` via strategy code in `algorithm/hhl/variants.py`.
+- Current HHL extraction uses statevector simulation and expects symmetric or Hermitian inputs.
 
 **`double_quant.algorithm.shapley`**
-Split into three sub-modules (`protocol.py`, `calculator.py`, `quantum.py`):
-- `ValueFunction` (protocol, in `protocol.py`): Any object with `__getitem__(bitmask: int) -> float`.
-- `ExtractionMode`, `QAEOptions` (in `protocol.py`): Types for quantum extraction configuration.
-- `ShapleyCalculator` (base class, in `calculator.py`): Subclass and implement `_calculate_one(player)`. All subclasses accept a `ValueFunction`.
-- `BinaryEnumerationCalculator` (in `calculator.py`): Exact, O(n · 2^n) classical.
-- `PermutationEnumerationCalculator` (in `calculator.py`): Exact via permutation enumeration.
-- `PermutationMCCalculator` (in `calculator.py`): Monte Carlo approximation.
-- `QuantumCalculator` (in `quantum.py`): Quantum algorithm using `IntervalLoader` + `VertexRotator` + `ValueLoader` circuits. Supports 6 extraction modes: `"statevector"` (default, exact), `"shots"`, `"qae_canonical"`, `"qae_iqae"`, `"qae_mlqae"`, `"qae_fae"`. **Requires superadditive value function.**
+- `ShapleyCalculator` is the base class.
+- `BinaryEnumerationCalculator` is the exact subset-enumeration baseline.
+- `PermutationEnumerationCalculator` is the exact permutation baseline.
+- `PermutationMCCalculator` is the Monte Carlo approximation.
+- `QuantumShapleyCaculator` is the actual public quantum solver class name in source, including the spelling typo. Keep that in mind when editing imports or public APIs.
+- Supported extraction modes are `"statevector"`, `"shots"`, `"qae_canonical"`, `"qae_iqae"`, `"qae_mlqae"`, and `"qae_fae"`.
+- Oracle-call counts are exposed through `get_oracle_count(player_index)`.
+- The quantum solver requires a **superadditive** value function.
 
 **`double_quant.application.risk`**
-- `RiskAttributor(returns_df, solver_class, mode)`: Orchestrates risk attribution. Imports `ShapleyCalculator` from `double_quant.algorithm.shapley`.
-  - `mode="rs"` (default, quantum-compatible): Uses `RiskSavingValueFunction`; `SRC_i = ES({i}) − Φ_i^RS`. RS is superadditive → works with `QuantumCalculator`.
-  - `mode="es"` (classical only): Uses `ExpectedShortfallValueFunction` directly; ES is subadditive → **incompatible with `QuantumCalculator`**.
-  - Both modes produce mathematically identical SRC results.
+- `RiskAttributor(returns_df, solver_class, alpha=0.95, mode=...)` orchestrates Shapley-based expected-shortfall attribution.
+- `mode="rs"` is the default and the only quantum-compatible route.
+- `mode="es"` uses expected shortfall directly and is classical-only.
+- `ExpectedShortfallValueFunction` and `RiskSavingValueFunction` both live in this module.
 
-### Critical constraint: superadditivity
+**`double_quant.application.portfolio`**
+- `PortfolioOptimizer` solves a constrained portfolio system using `HHLSolver` by default.
+- It expands systems to a power-of-two dimension before calling HHL.
+- `ConstraintScaler` exists but is incomplete: `from_pickle()` and scaled execution are not implemented.
+- Do not assume portfolio optimization is production-complete without reading this file first.
 
-`QuantumCalculator` encodes marginal contributions as rotation angles and asserts `value_in >= value_out` (non-negative marginal contributions). Passing a subadditive function (like raw ES) causes assertion errors. Always use `RiskSavingValueFunction` with `QuantumCalculator` for risk attribution.
+## Critical Constraints
+
+### Superadditivity requirement
+
+`QuantumShapleyCaculator` encodes marginal contributions as rotation angles and asserts non-negative increments. Passing a subadditive value function such as raw ES will fail or produce invalid results.
+
+For risk attribution:
+
+- Use `RiskSavingValueFunction` with `mode="rs"` for quantum workflows.
+- Use `mode="es"` only with classical Shapley solvers.
+- Both paths should recover the same SRC values mathematically.
+
+### Stale docs and API names
+
+- Do not copy import paths from `README.md` without checking the real package first.
+- The live public package exports `QuantumShapleyCaculator`, not `QuantumCalculator`.
+- The live code uses `double_quant.algorithm.*`, not `double_quant.solver.*`.
+
+### Generated and cached files
+
+- The repo contains checked-in generated noise such as `__pycache__` and `.DS_Store`; ignore these when mapping the codebase.
+- Test fixtures use cached market data in `tests/double_quant/application/cache/test_data.csv`.
+- Risk experiments use cached data under `experiments/risk/cache/`.
+- Generated experiment outputs live under `docs/assets/risk/` and `docs/assets/risk/data/`.
 
 ## Docs
 
-`docs/application/risk.md` and `docs/solver/shapley.md` contain the mathematical theory behind each module. Consult these before modifying or extending any algorithm or application module.
+- Read `docs/application/risk.md` before changing risk attribution logic.
+- Read `docs/solver/shapley.md` before changing Shapley algorithms, but verify import names against `src/`.
+- Read `docs/experiments/risk.md` before changing experiment generation or plotting code.
 
 ## Conventions
 
-- **Commit messages**: Angular convention — `<type>(<scope>): <description>`. Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`.
-- **Type hints**: Full type hints throughout; `py.typed` marker present.
-- **Linting**: `ruff`.
-- **Library docs**: Always use Context7 MCP for Qiskit / scipy / other library documentation without being asked.
-- **Help docs**: The plans for coding and some references must be create in `.help/`
+- **Commit messages:** Angular convention: `<type>(<scope>): <description>`
+- **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+- **Type hints:** keep full type hints throughout; `py.typed` is present
+- **Linting:** `ruff`
+- **Type checking:** `basedpyright`
+- **Library docs:** Always use Context7 MCP for Qiskit, SciPy, and other library documentation when you need external API references
+- **Help docs:** Plans and supporting references for coding work should be created under `.help/`

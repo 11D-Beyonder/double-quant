@@ -24,14 +24,14 @@ Subadditivity formalises the benefit of diversification and makes ES suitable as
 
 ## 2. Cooperative Game Model
 
-Risk attribution is modelled as an **n-player cooperative game** (N, v):
+Risk attribution is modelled as an **n-player cooperative game** $(N, v)$:
 
-- **Players** N = {1, 2, …, n} correspond to the n assets in the portfolio.
-- **Characteristic function** v : 2^N → ℝ assigns a value to every coalition S ⊆ N.
+- **Players** $N = {1, 2, …, n}$ correspond to the n assets in the portfolio.
+- **Characteristic function** $v : 2^N → ℝ$ assigns a value to every coalition $S ⊆ N$.
 
-Using ES directly as the characteristic function — V(S) = ES(S) — the **Shapley Risk Contribution (SRC)** of asset i is its Shapley value in this game:
+Using ES directly as the characteristic function — $v(S) = \text{ES}(S)$ — the **Shapley Risk Contribution (SRC)** of asset i is its Shapley value in this game:
 
-$$\text{SRC}_i = \Phi_i(V) = \sum_{S \subseteq N \setminus \{i\}} \gamma(n, |S|) \left[ \text{ES}(S \cup \{i\}) - \text{ES}(S) \right] \tag{Eq. 4.6}$$
+$$\text{SRC}_i = \Phi_i(V) = \sum_{S \subseteq N \setminus \{i\}} \gamma(n, |S|) \left[ \text{ES}(S \cup \{i\}) - \text{ES}(S) \right]$$
 
 where the Shapley weight is:
 

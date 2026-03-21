@@ -4,13 +4,13 @@
 
 Given an n-player cooperative game (N, v), the **Shapley value** Φ_i(v) of player i is the unique allocation satisfying efficiency, symmetry, dummy, and additivity axioms:
 
-$$\Phi_i(v) = \sum_{S \subseteq N \setminus \{i\}} \gamma(n, |S|)\,[v(S \cup \{i\}) - v(S)] \tag{Eq. 4.4}$$
+$$\Phi_i(v) = \sum_{S \subseteq N \setminus \{i\}} \gamma(n, |S|)\,[v(S \cup \{i\}) - v(S)]$$
 
 where the **Shapley weight** is:
 
-$$\gamma(n, s) = \frac{s!\,(n - s - 1)!}{n!} \tag{Eq. 4.5}$$
+$$\gamma(n, s) = \frac{s!\,(n - s - 1)!}{n!}$$
 
-γ(n, s) is the probability that coalition S appears as the set of predecessors of player i in a uniformly random permutation of N.
+$\gamma(n, s)$ is the probability that coalition $S$ appears as the set of predecessors of player $i$ in a uniformly random permutation of $N$.
 
 ### Classical Complexity
 
