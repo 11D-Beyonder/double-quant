@@ -177,7 +177,7 @@ class ValueLoader(ControlledBlueprintCircuit):
         )
 
 
-class QuantumShapleyCaculator(ShapleyCalculator):
+class QuantumShapleyCalculator(ShapleyCalculator):
     def __init__(
         self,
         num_players: int,

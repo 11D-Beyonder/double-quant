@@ -13,7 +13,7 @@ from double_quant.algorithm.shapley import (
     BinaryEnumerationCalculator,
     PermutationMCCalculator,
     QAEOptions,
-    QuantumShapleyCaculator,
+    QuantumShapleyCalculator,
 )
 from experiments.risk.artifacts import (
     DataPreparation,
@@ -224,7 +224,7 @@ def _generate_quantum_comparison_snapshots(
                     try:
                         src_q = RiskAttributor(
                             ret_sub,
-                            QuantumShapleyCaculator,
+                            QuantumShapleyCalculator,
                             mode="rs",
                             internal_qubits_num=n_l,
                             internal_multiplier=1,
@@ -378,7 +378,7 @@ def _generate_equal_error_snapshot(
 
         for target_epsilon in iqae_epsilons:
             try:
-                calc_q = QuantumShapleyCaculator(
+                calc_q = QuantumShapleyCalculator(
                     n_players,
                     vfunc,
                     internal_qubits_num=n_l_quantum,
@@ -399,7 +399,7 @@ def _generate_equal_error_snapshot(
 
         for k in mlqae_eval_qubits:
             try:
-                calc_q = QuantumShapleyCaculator(
+                calc_q = QuantumShapleyCalculator(
                     n_players,
                     vfunc,
                     internal_qubits_num=n_l_quantum,
@@ -420,7 +420,7 @@ def _generate_equal_error_snapshot(
 
         for maxiter in fae_maxiters:
             try:
-                calc_q = QuantumShapleyCaculator(
+                calc_q = QuantumShapleyCalculator(
                     n_players,
                     vfunc,
                     internal_qubits_num=n_l_quantum,
@@ -472,7 +472,7 @@ def _compute_src_with_quantum_fallback(
     try:
         src = RiskAttributor(
             returns_sub,
-            QuantumShapleyCaculator,
+            QuantumShapleyCalculator,
             mode="rs",
             internal_qubits_num=internal_qubits_num,
             internal_multiplier=1,

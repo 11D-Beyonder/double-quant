@@ -11,7 +11,7 @@ from double_quant.algorithm.shapley import (
     BinaryEnumerationCalculator,
     PermutationMCCalculator,
     QAEOptions,
-    QuantumShapleyCaculator,
+    QuantumShapleyCalculator,
 )
 
 
@@ -173,7 +173,7 @@ class TestQuantumSolver:
         ).attribute()
         src_quantum = RiskAttributor(
             returns_3,
-            QuantumShapleyCaculator,
+            QuantumShapleyCalculator,
             mode="rs",
             internal_qubits_num=6,
             internal_multiplier=1,
@@ -212,7 +212,7 @@ class TestQuantumSolver:
         for qae_mode in qae_modes:
             src_qae = RiskAttributor(
                 returns_3,
-                QuantumShapleyCaculator,
+                QuantumShapleyCalculator,
                 mode="rs",
                 internal_qubits_num=6,
                 internal_multiplier=1,
@@ -262,7 +262,7 @@ class TestQuantumSolver:
         ]
 
         for extraction_mode, opts in modes_opts:
-            calc = QuantumShapleyCaculator(
+            calc = QuantumShapleyCalculator(
                 n,
                 vfunc,
                 internal_qubits_num=6,

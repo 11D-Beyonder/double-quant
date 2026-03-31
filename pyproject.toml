@@ -1,6 +1,6 @@
 [project]
 name = "double-quant"
-version = "0.0.1a1"
+version = "0.0.1a2"
 description = "Quantum-inspired quantitative finance workflows and algorithms"
 readme = "README.md"
 requires-python = ">=3.11"

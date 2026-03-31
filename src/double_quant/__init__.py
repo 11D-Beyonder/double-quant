@@ -6,7 +6,7 @@ from double_quant.algorithm.shapley import (
     PermutationEnumerationCalculator,
     PermutationMCCalculator,
     QAEOptions,
-    QuantumShapleyCaculator,
+    QuantumShapleyCalculator,
     ShapleyCalculator,
 )
 from double_quant.application import RiskAttributor
@@ -28,7 +28,7 @@ __all__ = [
     "BinaryEnumerationCalculator",
     "PermutationEnumerationCalculator",
     "PermutationMCCalculator",
-    "QuantumShapleyCaculator",
+    "QuantumShapleyCalculator",
     "QAEOptions",
     "RiskAttributor",
 ]
