@@ -31,6 +31,9 @@ uv run pytest tests/double_quant/algorithm/shapley/test_calculator.py
 uv run pytest tests/double_quant/algorithm/hhl/test_solver.py
 uv run pytest tests/double_quant/application/test_risk.py
 
+# Run a single test
+uv run pytest -k "<test_function_name>"
+
 # Run with coverage
 uv run pytest --cov=double_quant
 

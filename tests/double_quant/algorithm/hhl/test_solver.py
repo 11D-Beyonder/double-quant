@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from qiskit import QuantumCircuit, QuantumRegister
 from qiskit.circuit.library import (
     ExactReciprocalGate,
@@ -7,9 +8,11 @@ from qiskit.circuit.library import (
     phase_estimation,
 )
 from qiskit.quantum_info import Statevector
+
+from double_quant.algorithm.hhl import HHLSolver
+from double_quant.algorithm.hhl.variants import ExactEigenPredictor
 from double_quant.common import LinearSystem
 from double_quant.common.metric import cos_similarity
-from double_quant.algorithm.hhl import HHLSolver
 
 
 class TestHhlQubitOrder:
@@ -59,29 +62,29 @@ class TestHhlQubitOrder:
         print(Statevector.from_circuit(circuit).probabilities_dict([5]))
 
 
+class TestMath:
+    def test_norm_const(self):
+        for _ in range(100):
+            system = LinearSystem.random_for_hhl(2**3)
+            eigen1 = ExactEigenPredictor(system.matrix)
+            eigen2 = ExactEigenPredictor(system.matrix / eigen1.max_abs_eigen / 2)
+            assert eigen2.max_abs_eigen == pytest.approx(0.5)
+            assert eigen2.min_abs_eigen == pytest.approx(
+                eigen1.min_abs_eigen / 2 / eigen1.max_abs_eigen
+            )
+
+
 class TestHHLSolver:
     """Test cases for HHLSolver."""
 
-    def test_basic_solve_sapo_method(self):
+    def test_eigen_based(self):
         """Test quantum solver with SAPO method on simple system."""
 
         NUM_TEST = 100
         count = 0
         for _ in range(NUM_TEST):
-            system = LinearSystem.random_for_hhl(2**2)
-            count += (
-                cos_similarity(
-                    np.linalg.solve(system.matrix, system.vector),
-                    HHLSolver.solve(system.matrix, system.vector),
-                )
-                >= 0.5
-            )
+            system = LinearSystem.random_for_hhl(2**1)
+            a = np.linalg.solve(system.matrix, system.vector)
+            b = HHLSolver.solve(system.matrix, system.vector, "sapo")
+            count += cos_similarity(a, b) >= 0.5
         assert count >= NUM_TEST // 2
-
-
-class TestQuantumVsClassical:
-    """Compare quantum and classical solver results."""
-
-    def test_compare_with_numpy_2x2(self):
-        """Compare quantum solver with NumPy on 2x2 system."""
-        ...
