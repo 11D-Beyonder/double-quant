@@ -195,12 +195,3 @@ For risk attribution:
 - Read `docs/solver/shapley.md` before changing Shapley algorithms, but verify import names against `src/`.
 - Read `docs/experiments/risk.md` before changing experiment generation or plotting code.
 
-## Conventions
-
-- **Commit messages:** Angular convention: `<type>(<scope>): <description>`
-- **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-- **Type hints:** keep full type hints throughout; `py.typed` is present
-- **Linting:** `ruff`
-- **Type checking:** `basedpyright`
-- **Library docs:** Always use Context7 MCP for Qiskit, SciPy, and other library documentation when you need external API references
-- **Help docs:** Plans and supporting references for coding work should be created under `.help/`
