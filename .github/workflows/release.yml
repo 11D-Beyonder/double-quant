@@ -18,19 +18,15 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
       - name: Validate tag and package version
         id: metadata
         shell: bash
         run: |
           tag="${GITHUB_REF_NAME}"
-          version="$(
-            python3 - <<'PY'
-            import tomllib
-
-            with open("pyproject.toml", "rb") as f:
-                print(tomllib.load(f)["project"]["version"])
-            PY
-          )"
+          version="$(uv version --short)"
 
           if [[ "${tag}" != "v${version}" ]]; then
             echo "::error title=Version mismatch::Git tag '${tag}' does not match pyproject.toml version '${version}'."
