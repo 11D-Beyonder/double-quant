@@ -10,6 +10,8 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![GitHub License](https://img.shields.io/github/license/11D-Beyonder/double-quant)](LICENSE)
+[![Qiskit Ecosystem](https://qisk.it/e-6e4e5010)](https://qisk.it/e)
+[![PyPI Version](https://img.shields.io/pypi/v/double-quant)](https://pypi.org/project/double-quant/)
 
 # Double Quant
 
