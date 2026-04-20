@@ -1,6 +1,12 @@
 """Double Quant — quantum computing for quantitative finance."""
 
 from double_quant.algorithm.hhl import HHLSolver
+from double_quant.algorithm.qubo import (
+    QAOASolver,
+    QUBOSolver,
+    QUBOSolverResult,
+    SamplingVQESolver,
+)
 from double_quant.algorithm.shapley import (
     BinaryEnumerationCalculator,
     PermutationEnumerationCalculator,
@@ -10,6 +16,7 @@ from double_quant.algorithm.shapley import (
     ShapleyCalculator,
 )
 from double_quant.application import RiskAttributor
+from double_quant.common import IsingProblem, QUBOProblem
 from double_quant.data.source import PriceSource, YFinanceSource
 from double_quant.data.transform import (
     to_covariance,
@@ -24,11 +31,17 @@ __all__ = [
     "to_covariance",
     "to_expected_returns",
     "HHLSolver",
+    "QUBOProblem",
+    "IsingProblem",
     "ShapleyCalculator",
     "BinaryEnumerationCalculator",
     "PermutationEnumerationCalculator",
     "PermutationMCCalculator",
     "QuantumShapleyCalculator",
     "QAEOptions",
+    "QUBOSolver",
+    "QUBOSolverResult",
+    "QAOASolver",
+    "SamplingVQESolver",
     "RiskAttributor",
 ]
