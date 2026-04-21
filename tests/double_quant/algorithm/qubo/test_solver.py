@@ -72,6 +72,17 @@ class TestVariationalSolvers:
         assert result.parameter_values is not None
         assert result.metadata is not None
 
+    def test_qaoa_solver_finds_two_variable_qubo_optimum(self):
+        problem = QUBOProblem(np.array([[-1.0, 0.0], [0.0, -1.5]]))
+
+        result = QAOASolver(optimizer=COBYLA(maxiter=20), reps=1, seed=7).solve(problem)
+
+        assert result.best_bitstring.tolist() == [1, 1]
+        assert result.best_objective == pytest.approx(-2.5)
+        assert result.best_energy == pytest.approx(-2.5)
+        assert result.parameter_values is not None
+        assert result.metadata is not None
+
     def test_sampling_vqe_solver_finds_single_variable_qubo_optimum(self):
         problem = QUBOProblem(np.array([[-1.0]]))
 
@@ -80,5 +91,16 @@ class TestVariationalSolvers:
         assert result.best_bitstring.tolist() == [1]
         assert result.best_objective == pytest.approx(-1.0)
         assert result.best_energy == pytest.approx(-1.0)
+        assert result.parameter_values is not None
+        assert result.metadata is not None
+
+    def test_sampling_vqe_solver_finds_two_variable_qubo_optimum(self):
+        problem = QUBOProblem(np.array([[-1.0, 0.0], [0.0, -1.5]]))
+
+        result = SamplingVQESolver(optimizer=COBYLA(maxiter=20), seed=7).solve(problem)
+
+        assert result.best_bitstring.tolist() == [1, 1]
+        assert result.best_objective == pytest.approx(-2.5)
+        assert result.best_energy == pytest.approx(-2.5)
         assert result.parameter_values is not None
         assert result.metadata is not None
