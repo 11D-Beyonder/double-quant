@@ -5,6 +5,7 @@ from typing import Any
 
 import numpy as np
 from qiskit.primitives import StatevectorSampler
+from qiskit.quantum_info import Statevector
 from qiskit_algorithms.optimizers import COBYLA
 
 from double_quant.algorithm.qubo.result import QUBOSolverResult
@@ -73,6 +74,46 @@ def build_result(
         best_energy=best_energy,
         best_probability=measurement.get("probability"),
         parameter_values=parameter_values,
+        probabilities=probabilities,
+        metadata=metadata,
+    )
+
+
+def build_exact_result(
+    source_problem: QUBOProblem | IsingProblem,
+    ising_problem: IsingProblem,
+    raw_result: Any,
+) -> QUBOSolverResult:
+    statevector = getattr(raw_result, "eigenstate", None)
+    if not isinstance(statevector, Statevector):
+        raise ValueError("Qiskit result does not include a Statevector eigenstate")
+
+    probabilities = normalize_probabilities(statevector.probabilities_dict())
+    if not probabilities:
+        raise ValueError("Statevector eigenstate does not contain probabilities")
+
+    best_bitstring = max(
+        probabilities.items(),
+        key=lambda item: (item[1], tuple(int(bit) for bit in item[0])),
+    )[0]
+    bits = np.fromiter((int(bit) for bit in best_bitstring), dtype=int)
+    spins = bits_to_spins(bits)
+    best_energy = ising_problem.evaluate(spins)
+    if isinstance(source_problem, QUBOProblem):
+        best_objective = source_problem.evaluate(bits)
+    else:
+        best_objective = best_energy
+
+    metadata = {
+        "project_bitstring": best_bitstring,
+        "eigenvalue": float(np.real(raw_result.eigenvalue)),
+    }
+
+    return QUBOSolverResult(
+        best_bitstring=bits,
+        best_objective=best_objective,
+        best_energy=best_energy,
+        best_probability=probabilities[best_bitstring],
         probabilities=probabilities,
         metadata=metadata,
     )

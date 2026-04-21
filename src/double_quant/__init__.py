@@ -2,6 +2,7 @@
 
 from double_quant.algorithm.hhl import HHLSolver
 from double_quant.algorithm.qubo import (
+    NumPyMinimumEigensolverSolver,
     QAOASolver,
     QUBOSolver,
     QUBOSolverResult,
@@ -41,6 +42,7 @@ __all__ = [
     "QAEOptions",
     "QUBOSolver",
     "QUBOSolverResult",
+    "NumPyMinimumEigensolverSolver",
     "QAOASolver",
     "SamplingVQESolver",
     "RiskAttributor",
