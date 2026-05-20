@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Self
 import numpy as np
 
@@ -156,3 +157,125 @@ class LinearSystem:
             f"matrix_scaling={self._matrix_init_scaling:.6f}, "
             f"vector_scaling={self._vector_init_scaling:.6f})"
         )
+
+
+@dataclass(frozen=True, slots=True)
+class QUBOProblem:
+    """Represents a QUBO objective of the form x^T Q x + c."""
+
+    quadratic_matrix: np.ndarray
+    constant: float = 0.0
+    variable_names: list[str] | None = None
+
+    def __post_init__(self) -> None:
+        matrix = np.asarray(self.quadratic_matrix, dtype=float)
+        if matrix.ndim != 2:
+            raise ValueError(
+                f"quadratic_matrix must be 2-dimensional, got shape {matrix.shape}"
+            )
+        if matrix.shape[0] != matrix.shape[1]:
+            raise ValueError(
+                "quadratic_matrix must be square, got "
+                f"shape {matrix.shape[0]}x{matrix.shape[1]}"
+            )
+        names = self._normalize_variable_names(matrix.shape[0], self.variable_names)
+        object.__setattr__(self, "quadratic_matrix", matrix)
+        object.__setattr__(self, "constant", float(self.constant))
+        object.__setattr__(self, "variable_names", names)
+
+    @staticmethod
+    def _normalize_variable_names(
+        dimension: int, variable_names: list[str] | None
+    ) -> list[str]:
+        if variable_names is None:
+            return [f"x_{i}" for i in range(dimension)]
+        if len(variable_names) != dimension:
+            raise ValueError(
+                "variable_names length mismatch: "
+                f"expected {dimension}, got {len(variable_names)}"
+            )
+        return list(variable_names)
+
+    @property
+    def num_variables(self) -> int:
+        return int(self.quadratic_matrix.shape[0])
+
+    def evaluate(self, bits: np.ndarray | list[int]) -> float:
+        bit_array = np.asarray(bits, dtype=int)
+        if bit_array.ndim != 1:
+            raise ValueError(f"bits must be 1-dimensional, got shape {bit_array.shape}")
+        if bit_array.shape[0] != self.num_variables:
+            raise ValueError(
+                "bits length mismatch: "
+                f"expected {self.num_variables}, got {bit_array.shape[0]}"
+            )
+        if not np.isin(bit_array, (0, 1)).all():
+            raise ValueError("bits must contain only 0 or 1")
+        value = bit_array @ self.quadratic_matrix @ bit_array
+        return float(value + self.constant)
+
+
+@dataclass(frozen=True, slots=True)
+class IsingProblem:
+    """Represents an Ising objective of the form h·s + sum J_ij s_i s_j + c."""
+
+    linear_bias: np.ndarray
+    quadratic_matrix: np.ndarray
+    constant: float = 0.0
+    variable_names: list[str] | None = None
+
+    def __post_init__(self) -> None:
+        linear = np.asarray(self.linear_bias, dtype=float)
+        quadratic = np.asarray(self.quadratic_matrix, dtype=float)
+        if linear.ndim != 1:
+            raise ValueError(
+                f"linear_bias must be 1-dimensional, got shape {linear.shape}"
+            )
+        if quadratic.ndim != 2:
+            raise ValueError(
+                f"quadratic_matrix must be 2-dimensional, got shape {quadratic.shape}"
+            )
+        if quadratic.shape[0] != quadratic.shape[1]:
+            raise ValueError(
+                "quadratic_matrix must be square, got "
+                f"shape {quadratic.shape[0]}x{quadratic.shape[1]}"
+            )
+        if quadratic.shape[0] != linear.shape[0]:
+            raise ValueError(
+                "linear_bias and quadratic_matrix size mismatch: "
+                f"len(linear_bias)={linear.shape[0]}, "
+                f"quadratic_matrix={quadratic.shape}"
+            )
+
+        constant = float(self.constant)
+        names = QUBOProblem._normalize_variable_names(linear.shape[0], self.variable_names)
+        diagonal = np.diag(quadratic).copy()
+        constant += float(diagonal.sum())
+        symmetric = 0.5 * (quadratic + quadratic.T)
+        np.fill_diagonal(symmetric, 0.0)
+
+        object.__setattr__(self, "linear_bias", linear)
+        object.__setattr__(self, "quadratic_matrix", symmetric)
+        object.__setattr__(self, "constant", constant)
+        object.__setattr__(self, "variable_names", names)
+
+    @property
+    def num_variables(self) -> int:
+        return int(self.linear_bias.shape[0])
+
+    def evaluate(self, spins: np.ndarray | list[int]) -> float:
+        spin_array = np.asarray(spins, dtype=int)
+        if spin_array.ndim != 1:
+            raise ValueError(
+                f"spins must be 1-dimensional, got shape {spin_array.shape}"
+            )
+        if spin_array.shape[0] != self.num_variables:
+            raise ValueError(
+                "spins length mismatch: "
+                f"expected {self.num_variables}, got {spin_array.shape[0]}"
+            )
+        if not np.isin(spin_array, (-1, 1)).all():
+            raise ValueError("spins must contain only -1 or 1")
+        pairwise = np.triu(self.quadratic_matrix, k=1)
+        energy = self.linear_bias @ spin_array + spin_array @ pairwise @ spin_array
+        return float(energy + self.constant)

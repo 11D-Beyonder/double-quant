@@ -17,6 +17,8 @@ __pycache__/
 .venv/
 uv.lock
 .ruff_cache/
+.uv-cache/
+dist/
 
 # Data cache (tests and experiments)
 tests/**/cache/
@@ -26,3 +28,5 @@ experiments/**/cache/
 .claude/
 .help/
 .agents/
+docs/superpowers
+.superpowers
