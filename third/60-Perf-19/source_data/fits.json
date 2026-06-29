@@ -1,0 +1,62 @@
+{
+  "operation_count": {
+    "method": {
+      "model": "power",
+      "a": 8.646254480236946,
+      "b": 1.10289210600282,
+      "r2": 0.9821684948671688,
+      "expression": "8.6 n^1.1"
+    },
+    "baseline": {
+      "model": "power",
+      "a": 3.9185256165460545,
+      "b": 2.1488012893546586,
+      "r2": 0.9882132977697304,
+      "expression": "3.9 n^2.1"
+    },
+    "speedup": {
+      "expression": "0.5 n",
+      "coefficient": 0.453204983210102
+    }
+  },
+  "search_space": {
+    "method": {
+      "model": "exponential",
+      "a": 0.9588071014212883,
+      "b": 0.26517187512877793,
+      "r2": 0.9979131048338691,
+      "expression": "2^(0.3 n)"
+    },
+    "baseline": {
+      "model": "exponential",
+      "a": 1.0000000000000027,
+      "b": 1.0000000000000004,
+      "r2": 1.0,
+      "expression": "2^n"
+    },
+    "speedup": {
+      "expression": "2^(0.7 n)",
+      "coefficient": 1.042962654863165
+    }
+  },
+  "complexity": {
+    "method": {
+      "model": "exponential",
+      "a": 4250.5305029125175,
+      "b": 0.1489105994681143,
+      "r2": 0.9245726638156011,
+      "expression": "4250.5 2^(0.1 n)"
+    },
+    "baseline": {
+      "model": "exponential",
+      "a": 6467.74023473245,
+      "b": 0.21616311692925605,
+      "r2": 0.9047592288348105,
+      "expression": "6467.7 2^(0.2 n)"
+    },
+    "speedup": {
+      "expression": "1.5 2^(0.1 n)",
+      "coefficient": 1.5216312952702427
+    }
+  }
+}

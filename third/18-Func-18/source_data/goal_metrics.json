@@ -1,0 +1,43 @@
+{
+  "application": "Func-8",
+  "title": "Loan Decision",
+  "n_values": [
+    5,
+    7,
+    11,
+    14,
+    16,
+    19,
+    21,
+    25,
+    28,
+    30
+  ],
+  "qaoa_layers": [
+    6,
+    8,
+    14,
+    18,
+    20,
+    24,
+    26,
+    32,
+    36,
+    38
+  ],
+  "operation_speedup_min": 6.594594594594595,
+  "operation_speedup_median": 25.13440377273748,
+  "search_space_reduction_min": 5.333333333333333,
+  "search_space_reduction_median": 417.18518518518516,
+  "complexity_speedup_min": 5.2727272727272725,
+  "complexity_speedup_median": 15.671875,
+  "complexity_reduction_median": 0.9361914257228315,
+  "precision_score_gain": 143.86984059895798,
+  "noisy_precision_score_gain": 66.07294044456731,
+  "noisy_complexity_reduction": 0.9361914257228315,
+  "operation_speedup_fit": "1.2 n^1.1",
+  "search_space_speedup_fit": "2^(0.5 n)",
+  "complexity_speedup_fit": "4.7 2^(0.1 n)",
+  "method_complexity_fit": "4710",
+  "baseline_complexity_fit": "21937.9 2^(0.1 n)"
+}

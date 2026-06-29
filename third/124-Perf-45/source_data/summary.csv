@@ -1,0 +1,2 @@
+application_id,method_algorithm,baseline_algorithm,baseline_variant,method_qubits,baseline_qubits,method_depth,baseline_depth,method_size,baseline_size,method_clbits,baseline_clbits
+Func-5,sfs_grover,grover,plain_grover_baseline,4,8,22,22,52,92,4,8

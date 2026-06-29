@@ -1,0 +1,14 @@
+{
+  "application_id": "Func-9",
+  "method_algorithm": "sfs_grover",
+  "baseline_algorithm": "grover",
+  "baseline_variant": "plain_grover_baseline",
+  "method_qubits": 4,
+  "baseline_qubits": 8,
+  "method_depth": 22,
+  "baseline_depth": 22,
+  "method_size": 52,
+  "baseline_size": 92,
+  "method_clbits": 4,
+  "baseline_clbits": 8
+}

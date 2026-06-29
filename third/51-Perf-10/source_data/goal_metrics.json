@@ -1,0 +1,39 @@
+{
+  "application": "Func-10",
+  "title": "Index Tracking",
+  "n_values": [
+    7,
+    10,
+    15,
+    17,
+    20,
+    22,
+    24,
+    27
+  ],
+  "qaoa_layers": [
+    10,
+    14,
+    22,
+    24,
+    28,
+    30,
+    34,
+    38
+  ],
+  "operation_speedup_min": 9.898305084745763,
+  "operation_speedup_median": 28.097488545732226,
+  "search_space_reduction_min": 10.666666666666666,
+  "search_space_reduction_median": 667.4962962962964,
+  "complexity_speedup_min": 5.78125,
+  "complexity_speedup_median": 15.19047619047619,
+  "complexity_reduction_median": 0.9341692789968652,
+  "precision_score_gain": 171.42355688531495,
+  "noisy_precision_score_gain": 108.86555437069978,
+  "noisy_complexity_reduction": 0.9341692789968652,
+  "operation_speedup_fit": "1.3 n^1.1",
+  "search_space_speedup_fit": "2^(0.5 n)",
+  "complexity_speedup_fit": "4.4 2^(0.1 n)",
+  "method_complexity_fit": "5994.7",
+  "baseline_complexity_fit": "26345.9 2^(0.1 n)"
+}

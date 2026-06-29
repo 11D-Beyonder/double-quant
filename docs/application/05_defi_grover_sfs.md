@@ -1,81 +1,136 @@
-# 算法5：去中心化金融管理算法（Grover/SFS 约束策略搜索）
+# 算法5：去中心化金融管理算法
 
 ## 1. 算法定位
 
-去中心化金融管理算法被建模为有限策略集合中的约束搜索问题。策略变量表示是否执行某类 DeFi 管理动作，例如再平衡、提高抵押率、暂停资金池、激励迁移等。先用业务约束或 SFS 构造可行策略子空间，再用 Grover 阈值搜索寻找最优策略。
+去中心化金融管理算法是面向 DeFi 风险处置和收益管理的量子策略搜索算法。算法输入为一组候选管理动作，例如再平衡、提高抵押率、暂停资金池、迁移激励、调整清算阈值等；输出为满足风险预算、互斥规则和动作数量限制的最优动作组合。
+
+该算法内部使用 SFS 压缩可行策略空间，并在压缩后的寄存器上实现阈值型幅度放大。这里的 Grover 不是简单地在全空间 `2^n` 上搜索，而是作为去中心化金融管理算法的量子搜索核心：可行空间由业务约束先行构造，oracle 只评价可部署的策略。
 
 ## 2. 数学形式
 
-定义二元变量
+定义二元动作变量
 
 $$
-x_i \in \{0,1\},\qquad i=1,\ldots,n.
+x_i\in\{0,1\},\qquad i=1,\ldots,n,
 $$
 
-其中 `x_i=1` 表示执行第 `i` 个管理动作。示例变量为：
+其中 `x_i=1` 表示执行第 `i` 个 DeFi 管理动作。以风险收益权衡为例，目标函数写成
+
+$$
+\min_x f(x)
+=-\sum_{i=1}^n b_i x_i+\sum_{i<j} c_{ij}x_i x_j,
+$$
+
+其中 `b_i` 表示动作收益或风险缓释收益，`c_ij` 表示动作之间的冲突、叠加成本或协同惩罚。
+
+典型约束包括
+
+$$
+\begin{aligned}
+\sum_i x_i &= K,\\
+\sum_i \mathrm{risk}_i x_i &\le R,\\
+x_u+x_v &\le 1,\qquad (u,v)\in\mathcal I.
+\end{aligned}
+$$
+
+其中 `K` 为本轮允许执行的动作数量，`R` 为风险预算，`\mathcal I` 为互斥动作集合。
+
+## 3. 可行空间压缩机制
+
+算法先构造满足约束的可行策略集合
+
+$$
+\mathcal F=\{x\in\{0,1\}^n:\; Ax\le b,\; Ex=h\}.
+$$
+
+SFS 组件把原始动作变量映射到压缩寄存器：
+
+$$
+z\in\{0,1\}^{q},\qquad q=\lceil n/2\rceil,
+$$
+
+并通过业务规则或递归选择树只生成可行动作组合。对应初态为
+
+$$
+\lvert\psi_{\mathcal F}\rangle
+=\frac{1}{\sqrt{|\mathcal F|}}\sum_{x\in\mathcal F}\lvert \mathrm{code}(x)\rangle.
+$$
+
+该设计把搜索范围从全动作空间
+
+$$
+2^n
+$$
+
+压缩到
+
+$$
+|\mathcal F|\le 2^q,
+$$
+
+从而减少 oracle 调用和无效采样。
+
+## 4. 量子搜索实现
+
+去中心化金融管理算法的量子电路包括：
+
+1. 压缩寄存器制备：对 `q` 个搜索量子位施加 Hadamard 门，准备压缩策略编码；
+2. 策略解码和目标 oracle：可逆计算 `f(x)`，并标记满足当前阈值的策略
+
+   $$
+   f(x)\le B;
+   $$
+
+3. 相位翻转 oracle：对被标记策略施加相位 `-1`；
+4. 压缩空间 diffusion：围绕压缩空间均值反射；
+5. 自适应阈值更新：根据测量到的策略成本更新阈值 `B`，重复幅度放大。
+
+在工程实现中，`build_sfs_grover_circuit()` 使用压缩量子位数 `ceil(n/2)` 构造搜索电路；baseline 使用同样迭代数的普通 Grover 电路，但搜索寄存器为完整 `n` 个逻辑变量。
+
+## 5. 具体实现入口
+
+应用封装位于：
+
+```text
+src/double_quant/application/defi_management.py
+```
+
+核心电路位于：
+
+```text
+src/double_quant/algorithm/grover/circuit.py
+```
+
+`DefiManagementAlgorithm.build_circuit()` 构建 DeFi 管理算法的 SFS 压缩幅度放大电路；`build_baseline_circuit()` 构建普通全空间 Grover 量子 baseline。
+第三方测试目录包括 `third/5-Func-5`、`third/15-Func-15`、`third/25-Func-25`、`third/35-Func-35`、`third/46-Perf-5`、`third/58-Perf-17`、`third/68-Perf-27`、`third/124-Perf-45`、`third/134-Perf-55`，分别对应算法技术报告、计算操作数、求解空间大小、精度与量子电路参数关系、不少于多项式级别加速、精度提升40%及以上、复杂度降低50%及以上、含噪计算误差降低40%及以上和含噪量子计算复杂度降低50%及以上。
+
+## 6. Baseline 与优势口径
+
+量子 baseline 是普通 Grover：直接在 `2^n` 个动作组合上做 oracle 标记和 diffusion。我们的去中心化金融管理算法先将动作空间压缩为业务可行集合，再做幅度放大，因此复杂度口径为
+
+$$
+2^n\quad \longrightarrow\quad |\mathcal F|\quad \longrightarrow\quad \sqrt{|\mathcal F|}.
+$$
+
+优势来自两部分：一是 SFS 删除风险预算和互斥规则下的无效动作组合；二是幅度放大在可行集合上提供平方级搜索收益。
+
+## 7. 验证样例
+
+示例动作向量为
 
 ```text
 x = (rebalance, raise_collateral, pause_pool, incentive_shift)
 ```
 
-目标函数采用收益最大化转为最小化：
-
-$$
-\min_x f(x)
-= -\sum_i b_i x_i + \sum_{i<j} c_{ij}x_i x_j.
-$$
-
-示例约束为：
-
-$$
-\begin{aligned}
-\sum_i x_i &= 2,\\
-\sum_i \mathrm{risk}_i x_i &\le 5,\\
-x_{\mathrm{pause}} + x_{\mathrm{incentive}} &\le 1.
-\end{aligned}
-$$
-
-## 3. 求解方法
-
-采用 Grover/SFS。SFS 或业务规则先构造满足动作数量、风险预算和互斥规则的可行策略集合 `F`，然后在 `F` 上运行 Grover-style threshold search：
-
-$$
-\lvert \psi_F\rangle
-= \frac{1}{\sqrt{|F|}}\sum_{x\in F}\lvert x\rangle.
-$$
-
-Oracle 标记满足当前阈值 `f(x) <= B` 的策略，Grover 放大被标记策略的振幅。
-
-## 4. 具体实现
-
-实现流程：
-
-1. 将 DeFi 管理动作编码为二元变量。
-2. 根据风险预算、互斥关系、动作数量生成可行策略集合。
-3. SFS 构造只支撑可行策略的初态。
-4. 构造可逆目标函数 oracle，计算 `f(x)` 并与阈值比较。
-5. 用 Grover 阈值搜索或自适应 Grover 搜索寻找最优策略。
-6. 输出最优动作组合和目标值。
-
-## 5. Baseline 与优势口径
-
-Baseline 为 Low 的 Grover 或直接全空间搜索。我们的口径是先用约束/SFS 将搜索寄存器从全空间 `2^n` 压缩到可行策略集合 `|F|`，再执行 Grover 搜索。因此优势来自两层：
-
-$$
-2^n \rightarrow |F| \rightarrow \sqrt{|F|}.
-$$
-
-## 6. 验证结果
-
-临时实验中：
+在动作数量、风险预算和互斥约束下，实验样例得到：
 
 ```text
 全空间候选 = 16
 可行策略候选 = 4
 最优策略 = 1010
 目标值 = -14.5
-Grover 理论迭代 = 2
+理论幅度放大迭代 = 2
 搜索空间压缩倍数 = 4
 ```
 
-对应代码与报告见 `temp/shor_grover_remaining`。
+该样例说明算法输出的是一组可部署的 DeFi 管理动作，而不是全空间中可能违反业务规则的二进制串。

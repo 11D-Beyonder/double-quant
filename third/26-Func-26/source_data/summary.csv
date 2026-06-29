@@ -1,0 +1,2 @@
+application_id,method_algorithm,baseline_algorithm,baseline_variant,method_qubits,baseline_qubits,method_depth,baseline_depth,method_size,baseline_size,method_clbits,baseline_clbits
+Func-6,rasengan,penalty_qaoa,,7,6,12,23,39,54,6,6

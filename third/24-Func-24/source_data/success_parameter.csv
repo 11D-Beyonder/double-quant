@@ -1,0 +1,13 @@
+application_id,case_index,method_label,parameter_name,parameter_value,baseline_phase_qubits,method_phase_qubits,modulus,base,true_period,shots,success_probability,error_rate,measurement_space,candidate_space,noise_model,simulation_backend
+Func-4,1,method,phase_qubits_t,2,2,2,15,2,4,1024,0.4970703125,0.5029296875,4,3,none,aer
+Func-4,1,baseline,phase_qubits_t,2,2,2,15,2,4,1024,0.5068359375,0.4931640625,4,3,none,aer
+Func-4,2,method,phase_qubits_t,2,3,2,15,2,4,1024,0.5078125,0.4921875,4,3,none,aer
+Func-4,2,baseline,phase_qubits_t,3,3,2,15,2,4,1024,0.4755859375,0.5244140625,8,4,none,aer
+Func-4,3,method,phase_qubits_t,3,4,3,15,2,4,1024,0.5146484375,0.4853515625,8,4,none,aer
+Func-4,3,baseline,phase_qubits_t,4,4,3,15,2,4,1024,0.490234375,0.509765625,16,8,none,aer
+Func-4,4,method,phase_qubits_t,4,5,4,15,2,4,1024,0.5068359375,0.4931640625,16,8,none,aer
+Func-4,4,baseline,phase_qubits_t,5,5,4,15,2,4,1024,0.50390625,0.49609375,32,11,none,aer
+Func-4,5,method,phase_qubits_t,5,6,5,15,2,4,1024,0.5029296875,0.4970703125,32,11,none,aer
+Func-4,5,baseline,phase_qubits_t,6,6,5,15,2,4,1024,0.513671875,0.486328125,64,15,none,aer
+Func-4,6,method,phase_qubits_t,6,7,6,15,2,4,1024,0.5078125,0.4921875,64,15,none,aer
+Func-4,6,baseline,phase_qubits_t,7,7,6,15,2,4,1024,0.5029296875,0.4970703125,128,15,none,aer

@@ -1,0 +1,13 @@
+application_id,case_index,method_label,parameter_name,parameter_value,baseline_phase_qubits,method_phase_qubits,modulus,base,true_period,shots,success_probability,error_rate,measurement_space,candidate_space,noise_model,simulation_backend
+Func-4,1,method,phase_qubits_t,2,2,2,15,2,4,256,0.53515625,0.46484375,4,3,depolarizing_readout,aer_noise
+Func-4,1,baseline,phase_qubits_t,2,2,2,15,2,4,256,0.49609375,0.50390625,4,3,depolarizing_readout,aer_noise
+Func-4,2,method,phase_qubits_t,2,3,2,15,2,4,256,0.4296875,0.5703125,4,3,depolarizing_readout,aer_noise
+Func-4,2,baseline,phase_qubits_t,3,3,2,15,2,4,256,0.44921875,0.55078125,8,4,depolarizing_readout,aer_noise
+Func-4,3,method,phase_qubits_t,3,4,3,15,2,4,256,0.546875,0.453125,8,4,depolarizing_readout,aer_noise
+Func-4,3,baseline,phase_qubits_t,4,4,3,15,2,4,256,0.46875,0.53125,16,8,depolarizing_readout,aer_noise
+Func-4,4,method,phase_qubits_t,4,5,4,15,2,4,256,0.52734375,0.47265625,16,8,depolarizing_readout,aer_noise
+Func-4,4,baseline,phase_qubits_t,5,5,4,15,2,4,256,0.3671875,0.6328125,32,11,depolarizing_readout,aer_noise
+Func-4,5,method,phase_qubits_t,5,6,5,15,2,4,256,0.515625,0.484375,32,11,depolarizing_readout,aer_noise
+Func-4,5,baseline,phase_qubits_t,6,6,5,15,2,4,256,0.390625,0.609375,64,15,depolarizing_readout,aer_noise
+Func-4,6,method,phase_qubits_t,6,7,6,15,2,4,256,0.51953125,0.48046875,64,15,depolarizing_readout,aer_noise
+Func-4,6,baseline,phase_qubits_t,7,7,6,15,2,4,256,0.35546875,0.64453125,128,15,depolarizing_readout,aer_noise
