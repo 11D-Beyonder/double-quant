@@ -1,0 +1,14 @@
+{
+  "application_id": "Func-4",
+  "method_algorithm": "shor_period_finding",
+  "baseline_algorithm": "shor_period_finding",
+  "baseline_variant": "generic_permutation_baseline",
+  "method_qubits": 8,
+  "baseline_qubits": 8,
+  "method_depth": 14,
+  "baseline_depth": 14,
+  "method_size": 25,
+  "baseline_size": 25,
+  "method_clbits": 4,
+  "baseline_clbits": 4
+}

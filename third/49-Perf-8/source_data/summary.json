@@ -1,0 +1,14 @@
+{
+  "application_id": "Func-8",
+  "method_algorithm": "rasengan",
+  "baseline_algorithm": "penalty_qaoa",
+  "baseline_variant": null,
+  "method_qubits": 7,
+  "baseline_qubits": 6,
+  "method_depth": 12,
+  "baseline_depth": 23,
+  "method_size": 39,
+  "baseline_size": 54,
+  "method_clbits": 6,
+  "baseline_clbits": 6
+}

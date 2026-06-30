@@ -1,0 +1,39 @@
+{
+  "application": "Func-7",
+  "title": "Payment Settlement",
+  "n_values": [
+    4,
+    6,
+    8,
+    10,
+    12,
+    14,
+    16,
+    18
+  ],
+  "qaoa_layers": [
+    2,
+    4,
+    4,
+    6,
+    8,
+    8,
+    10,
+    12
+  ],
+  "operation_speedup_min": 1.894736842105263,
+  "operation_speedup_median": 5.684848484848485,
+  "search_space_reduction_min": 8.0,
+  "search_space_reduction_median": 312.88888888888886,
+  "complexity_speedup_min": 1.5384615384615385,
+  "complexity_speedup_median": 2.7343434343434345,
+  "complexity_reduction_median": 0.634281492427041,
+  "precision_score_gain": 283.61466177386916,
+  "noisy_precision_score_gain": 37.416229964833676,
+  "noisy_complexity_reduction": 0.634281492427041,
+  "operation_speedup_fit": "0.5 n",
+  "search_space_speedup_fit": "2^(0.7 n)",
+  "complexity_speedup_fit": "1.5 2^(0.1 n)",
+  "method_complexity_fit": "4250.5 2^(0.1 n)",
+  "baseline_complexity_fit": "6467.7 2^(0.2 n)"
+}

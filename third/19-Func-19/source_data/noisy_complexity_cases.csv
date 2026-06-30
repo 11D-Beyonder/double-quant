@@ -1,0 +1,5 @@
+application_id,case_index,n,compressed_qubits,method_noisy_complexity,baseline_noisy_complexity,method_noisy_iterations,baseline_noisy_iterations,method_noisy_max_success,baseline_noisy_max_success,method_reached_threshold,baseline_reached_threshold,method_depth,baseline_depth,noisy_complexity_speedup,noisy_complexity_reduction,success_threshold,shots,noise_model
+Func-9,1,4,2,5,53,1,1,1.0,0.46875,1,1,5,53,10.6,0.9056603773584906,0.25,256,depolarizing_readout
+Func-9,2,5,3,23,129,1,1,0.75390625,0.27734375,1,1,23,129,5.608695652173913,0.8217054263565892,0.25,256,depolarizing_readout
+Func-9,3,6,3,23,522,1,2,0.75390625,0.29296875,1,1,23,261,22.695652173913043,0.9559386973180076,0.25,256,depolarizing_readout
+Func-9,4,7,4,53,1524,1,4,0.4609375,0.30859375,1,1,53,381,28.754716981132077,0.9652230971128609,0.25,256,depolarizing_readout

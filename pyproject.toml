@@ -29,6 +29,7 @@ classifiers = [
 ]
 dependencies = [
     "matplotlib>=3.10.8",
+    "mqt.ddsim>=2.3.0",
     "pandas>=3.0.0",
     "pylatexenc>=2.10",
     "qiskit>=2.2.3",
