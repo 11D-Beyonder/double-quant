@@ -1,5 +1,22 @@
 """Quantum and classical algorithm implementations."""
 
+from double_quant.algorithm.circuit import (
+    CircuitVisualization,
+    CircuitVisualizationError,
+    CircuitRepairError,
+    CircuitStitchingError,
+    ComputationProcessVisualization,
+    QuantumProgramRepairer,
+    RepairResult,
+    StateEvolutionStep,
+    StateEvolutionVisualization,
+    StitchResult,
+    repair_quantum_circuit,
+    stitch_circuits,
+    visualize_quantum_circuit,
+    visualize_quantum_computation_process,
+    visualize_state_evolution,
+)
 from double_quant.algorithm.hhl import HHLSolver
 from double_quant.algorithm.qubo import (
     NumPyMinimumEigensolverSolver,
@@ -18,7 +35,17 @@ from double_quant.algorithm.shapley import (
 )
 
 __all__ = [
+    "CircuitRepairError",
+    "CircuitStitchingError",
+    "CircuitVisualization",
+    "CircuitVisualizationError",
+    "ComputationProcessVisualization",
     "HHLSolver",
+    "QuantumProgramRepairer",
+    "RepairResult",
+    "StateEvolutionStep",
+    "StateEvolutionVisualization",
+    "StitchResult",
     "ShapleyCalculator",
     "BinaryEnumerationCalculator",
     "PermutationEnumerationCalculator",
@@ -30,4 +57,9 @@ __all__ = [
     "NumPyMinimumEigensolverSolver",
     "QAOASolver",
     "SamplingVQESolver",
+    "repair_quantum_circuit",
+    "stitch_circuits",
+    "visualize_quantum_circuit",
+    "visualize_quantum_computation_process",
+    "visualize_state_evolution",
 ]

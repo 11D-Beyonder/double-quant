@@ -126,6 +126,10 @@ class EigenBasedStrategy(HHLStrategy):
         raw_solution = self._extract_solution_by_statevector(circuit)
         return self._restore_scaling(raw_solution)
 
+    def build_circuit(self):
+        """Build the SAPO-style HHL circuit after matrix/vector pre-scaling."""
+        return self._construct_circuit(*self._pre_scaling())
+
     def _pre_scaling(self):
         vector_norm = float(np.linalg.norm(self._vector))
 

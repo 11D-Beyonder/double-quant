@@ -1,6 +1,16 @@
 """Double Quant — quantum computing for quantitative finance."""
 
 from double_quant.algorithm.hhl import HHLSolver
+from double_quant.algorithm.circuit import (
+    CircuitVisualization,
+    CircuitVisualizationError,
+    ComputationProcessVisualization,
+    StateEvolutionStep,
+    StateEvolutionVisualization,
+    visualize_quantum_circuit,
+    visualize_quantum_computation_process,
+    visualize_state_evolution,
+)
 from double_quant.algorithm.qubo import (
     NumPyMinimumEigensolverSolver,
     QAOASolver,
@@ -18,23 +28,42 @@ from double_quant.algorithm.shapley import (
 )
 from double_quant.application import RiskAttributor
 from double_quant.common import IsingProblem, QUBOProblem
-from double_quant.data.source import PriceSource, YFinanceSource
+from double_quant.data.source import (
+    AKShareSource,
+    PandasDataReaderSource,
+    PriceSource,
+    StooqSource,
+    YFinanceSource,
+)
 from double_quant.data.transform import (
     to_covariance,
     to_expected_returns,
     to_log_returns,
 )
 from double_quant.programming import (
+    BinaryOptimizationOperator,
     DecisionProblem,
     DecisionProgram,
     EuropeanCallPriceMeasure,
+    ExpectedShortfallOperator,
     ExpectedShortfallMeasure,
     FinancialProblem,
     FinancialProgram,
+    LinearSystemSolveOperator,
     MeasureFunction,
+    OperatorResult,
+    OperatorSpec,
+    QuantumFinancialOperatorLibrary,
+    ResourceProfile,
+    RiskAttributionOperator,
+    RiskAttributionSoftwareTemplate,
     ShapleyRiskContributionMeasure,
+    TemplateResult,
+    TemplateStep,
     ValuationProblem,
     ValuationProgram,
+    default_operator_library,
+    default_software_templates,
     dot,
     matmul,
     mean,
@@ -46,10 +75,21 @@ from double_quant.programming import (
 __all__ = [
     "PriceSource",
     "YFinanceSource",
+    "AKShareSource",
+    "PandasDataReaderSource",
+    "StooqSource",
     "to_log_returns",
     "to_covariance",
     "to_expected_returns",
     "HHLSolver",
+    "CircuitVisualization",
+    "CircuitVisualizationError",
+    "ComputationProcessVisualization",
+    "StateEvolutionStep",
+    "StateEvolutionVisualization",
+    "visualize_quantum_circuit",
+    "visualize_quantum_computation_process",
+    "visualize_state_evolution",
     "QUBOProblem",
     "IsingProblem",
     "ShapleyCalculator",
@@ -74,6 +114,19 @@ __all__ = [
     "ExpectedShortfallMeasure",
     "ShapleyRiskContributionMeasure",
     "EuropeanCallPriceMeasure",
+    "OperatorSpec",
+    "ResourceProfile",
+    "OperatorResult",
+    "QuantumFinancialOperatorLibrary",
+    "ExpectedShortfallOperator",
+    "LinearSystemSolveOperator",
+    "BinaryOptimizationOperator",
+    "RiskAttributionOperator",
+    "TemplateStep",
+    "TemplateResult",
+    "RiskAttributionSoftwareTemplate",
+    "default_operator_library",
+    "default_software_templates",
     "sum_",
     "dot",
     "quad_form",
