@@ -1,6 +1,6 @@
 # Risk Experiments
 
-This document describes the five experiments in `experiments/risk/` that validate and characterise the risk attribution framework. For the underlying theory, see [docs/application/risk.md](../application/risk.md) and [docs/solver/shapley.md](../solver/shapley.md).
+This document describes the six experiments in `experiments/risk/` that validate and characterise the risk attribution framework. For the underlying theory, see [docs/application/risk.md](../application/risk.md) and [docs/solver/shapley.md](../solver/shapley.md).
 
 ---
 
@@ -20,7 +20,7 @@ uv run python -m experiments.risk.generate_artifacts --force
 uv run python -m experiments.risk.plot_from_artifacts
 ```
 
-Available experiment names: `volatility`, `restoration`, `quantum_comparison`, `equal_error`, `empirical_scenario`.
+Available experiment names: `volatility`, `restoration`, `quantum_comparison`, `equal_error`, `equal_error_scaling`, `empirical_scenario`.
 
 ---
 
@@ -108,7 +108,24 @@ For each target accuracy ε ∈ {10⁻³, 2×10⁻³, 5×10⁻³, 10⁻², 2×10
 
 ---
 
-## Experiment 5: Empirical Scenario (`empirical_scenario`)
+## Experiment 5: Equal-Error Scaling (`equal_error_scaling`)
+
+**Question:** At a fixed target accuracy ε, how does the total oracle-call count required for full-portfolio risk attribution change as portfolio size n grows?
+
+**Method:** For portfolio sizes n ∈ {3, 4, 5, 6}, 8 randomly sampled portfolios are evaluated with two methods only:
+
+- **Classical MC:** sample counts {10, 20, 40, 80, …, 20 000}
+- **I-QAE:** ε ∈ {0.05, 0.03, 0.02, 0.01, 0.007, 0.005}, α=0.01
+
+For fixed target accuracy ε = 5×10⁻², the minimum total oracle calls required to attribute all n assets is extracted from each method's (oracle_calls, error) curve, with log-log extrapolation as fallback.
+
+**Outputs:**
+- `docs/assets/risk/data/equal_error_scaling_summary.csv` — (n, method, ε) → mean calls, std, reachable ratio, source type
+- `docs/assets/risk/equal_error_scaling.png` — total oracle calls vs portfolio size
+
+---
+
+## Experiment 6: Empirical Scenario (`empirical_scenario`)
 
 **Question:** Can SRC reveal hidden concentration risk that capital weights conceal?
 
