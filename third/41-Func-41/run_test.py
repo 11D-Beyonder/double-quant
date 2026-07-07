@@ -16,6 +16,7 @@ import numpy as np
 PROJECT = Path(__file__).resolve().parents[2]
 TEST_ID = "Func-41"
 TEST_NAME = "求解精度与量子复杂度分析优化理论测试"
+APP_NAME = TEST_NAME
 OUT_DIR = Path(__file__).resolve().parent / "out"
 DATA_DIR = OUT_DIR / "data"
 FIGURE_DIR = OUT_DIR / "figures"
@@ -32,6 +33,54 @@ APPLICATIONS = [
     ("Func-9", "银行网点布局优化算法", "func_9_branch_location", "grover"),
     ("Func-10", "指数追踪算法", "func_10_index_tracking", "rasengan"),
 ]
+
+
+
+
+def print_summary() -> None:
+    current_dir = globals().get("THIS_DIR", Path(__file__).resolve().parent)
+    data_dir = globals().get("DATA_DIR", current_dir / "out" / "data")
+    report_dir = globals().get("REPORT_DIR", current_dir / "out" / "reports")
+    app_label = globals().get("APP_NAME", globals().get("ALGORITHM_NAME", globals().get("TEST_NAME", "")))
+
+    metrics_path = data_dir / "metrics.json"
+    if metrics_path.exists():
+        metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+        test_id = str(metrics.get("测试项", globals().get("TEST_ID", "")))
+        algorithm = str(metrics.get("算法", metrics.get("测试名称", app_label)))
+        raw_status = metrics.get("是否通过", metrics.get("全部达标", None))
+        status = "通过" if raw_status is True else "未通过" if raw_status is False else "已完成"
+        skipped = {"测试项", "算法", "测试名称", "是否通过", "全部达标"}
+        parts = []
+        for key, value in metrics.items():
+            if key in skipped:
+                continue
+            if isinstance(value, float):
+                if "比例" in key or "降低" in key or "提升" in key or "误差百分比" in key:
+                    value = f"{value * 100:.1f}%" if abs(value) <= 1.0 else f"{value:.1f}%"
+                elif "加速" in key and "拟合" not in key:
+                    value = f"{value:.2f}x"
+                else:
+                    value = f"{value:.4g}"
+            parts.append(f"{key}={value}")
+            if len(parts) >= 4:
+                break
+        print(f"{test_id} {algorithm}：{status}")
+        if parts:
+            print("  摘要：" + "；".join(parts))
+        print(f"  结果：{data_dir.relative_to(current_dir)} / {report_dir.relative_to(current_dir)}")
+        return
+
+    function_path = data_dir / "function_test.json"
+    if function_path.exists():
+        result = json.loads(function_path.read_text(encoding="utf-8"))
+        status = "通过" if result.get("是否测试通过") else "未通过"
+        print(f"{result.get('测试项', globals().get('TEST_ID', ''))} {result.get('测试算法', app_label)}：{status}")
+        print(f"  摘要：测试类型={result.get('测试类型', '算法功能测试')}；我们的方法={result.get('我们的方法', '')}")
+        print(f"  结果：{data_dir.relative_to(current_dir)} / {report_dir.relative_to(current_dir)}")
+        return
+
+    print(f"{globals().get('TEST_ID', '')} {app_label}：测试完成。")
 
 
 def setup_font() -> None:
@@ -241,3 +290,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    print_summary()

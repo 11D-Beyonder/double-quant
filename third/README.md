@@ -1,9 +1,16 @@
 # 第三方测试拆分目录索引
 
-本目录按 `地图v1.4.docx` 第一列全局测试序号拆分，目录命名为 `序号-Func/Perf-x`。`4-Func-4` 至 `10-Func-10` 为算法技术报告；后续目录为单项测试，每个目录包含自己的 `run_test.py`、`out/data`、`out/figures` 和 `out/reports`。
+本目录按 `地图v1.4.docx` 第一列全局测试序号拆分，目录命名为 `序号-Func/Perf-x`。`4-Func-4` 至 `10-Func-10` 为算法技术报告与算法功能测试入口；后续目录为单项测试，每个目录包含自己的 `run_test.py`、`out/data`、`out/figures` 和 `out/reports`。
 
 | 全局序号 | 测试项 | 算法 | 测试内容 | 入口脚本 |
 |---:|---|---|---|---|
+| 4 | `Func-4` | 动态账本更新算法 | 算法功能测试 | `4-Func-4/run_test.py` |
+| 5 | `Func-5` | 去中心化金融管理算法 | 算法功能测试 | `5-Func-5/run_test.py` |
+| 6 | `Func-6` | 反欺诈监测算法 | 算法功能测试 | `6-Func-6/run_test.py` |
+| 7 | `Func-7` | 支付与结算系统算法 | 算法功能测试 | `7-Func-7/run_test.py` |
+| 8 | `Func-8` | 贷款发放决策算法 | 算法功能测试 | `8-Func-8/run_test.py` |
+| 9 | `Func-9` | 银行网点布局优化算法 | 算法功能测试 | `9-Func-9/run_test.py` |
+| 10 | `Func-10` | 指数追踪算法 | 算法功能测试 | `10-Func-10/run_test.py` |
 | 14 | `Func-14` | 动态账本更新算法 | 计算所需操作数测试 | `14-Func-14/run_test.py` |
 | 15 | `Func-15` | 去中心化金融管理算法 | 计算所需操作数测试 | `15-Func-15/run_test.py` |
 | 16 | `Func-16` | 反欺诈监测算法 | 计算所需操作数测试 | `16-Func-16/run_test.py` |

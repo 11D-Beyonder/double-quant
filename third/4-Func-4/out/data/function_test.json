@@ -1,0 +1,70 @@
+{
+  "测试项": "Func-4",
+  "测试类型": "算法功能测试",
+  "测试算法": "动态账本更新算法",
+  "我们的方法": "优化动态账本 Shor 周期发现电路",
+  "baseline": "通用 Shor 周期发现量子基线",
+  "是否测试通过": true,
+  "检查结果": [
+    {
+      "检查项": "算法技术报告存在",
+      "路径": "third/4-Func-4/out/reports/report.md",
+      "是否通过": true
+    },
+    {
+      "检查项": "应用算法封装存在",
+      "路径": "src/double_quant/application/dynamic_ledger_update.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "量子算法电路组件存在",
+      "路径": "src/double_quant/algorithm/shor/circuit.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "量子 baseline 组件存在",
+      "路径": "src/double_quant/algorithm/shor/baseline.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 14-Func-14 存在",
+      "路径": "third/14-Func-14",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 24-Func-24 存在",
+      "路径": "third/24-Func-24",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 34-Func-34 存在",
+      "路径": "third/34-Func-34",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 45-Perf-4 存在",
+      "路径": "third/45-Perf-4",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 57-Perf-16 存在",
+      "路径": "third/57-Perf-16",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 67-Perf-26 存在",
+      "路径": "third/67-Perf-26",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 123-Perf-44 存在",
+      "路径": "third/123-Perf-44",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 133-Perf-54 存在",
+      "路径": "third/133-Perf-54",
+      "是否通过": true
+    }
+  ]
+}
