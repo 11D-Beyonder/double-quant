@@ -1,0 +1,9 @@
+n,epsilon,method,mean_calls,std_calls,reachable_ratio,source_type
+3,0.05,Classical MC,1080.0,699.7142273814361,1.0,discrete
+3,0.05,I-QAE,3.0,0.0,1.0,discrete
+4,0.05,Classical MC,840.0,658.4831053261731,1.0,discrete
+4,0.05,I-QAE,4.0,0.0,1.0,discrete
+5,0.05,Classical MC,1150.0,466.36895265444076,1.0,discrete
+5,0.05,I-QAE,5.0,0.0,1.0,discrete
+6,0.05,Classical MC,1080.0,317.49015732775086,1.0,discrete
+6,0.05,I-QAE,6.0,0.0,1.0,discrete

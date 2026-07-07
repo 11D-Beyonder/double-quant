@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from typing import cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -374,6 +375,97 @@ def _plot_equal_error(snapshot_dir: str, figure_dir: str) -> None:
     print(f"Saved {out_path}")
 
 
+def _plot_equal_error_scaling(snapshot_dir: str, figure_dir: str) -> None:
+    df_summary = pd.read_csv(f"{snapshot_dir}/equal_error_scaling_summary.csv")
+
+    sns.set_theme(
+        style="whitegrid",
+        context="paper",
+        font_scale=1.5,
+        rc={
+            "font.family": "serif",
+            "font.serif": ["Times New Roman"],
+            "mathtext.fontset": "stix",
+            "axes.grid": True,
+            "grid.linestyle": "--",
+            "grid.alpha": 0.4,
+        },
+    )
+    fig, ax = plt.subplots(figsize=(8, 5))
+    palette = {
+        "Classical MC": "#377eb8",
+        "I-QAE": "#4daf4a",
+    }
+    markers = {
+        "Classical MC": "o",
+        "I-QAE": "s",
+    }
+
+    epsilon_values = sorted(df_summary["epsilon"].dropna().unique().tolist())
+    if not epsilon_values:
+        raise ValueError("No epsilon values found in equal-error scaling summary")
+    target_epsilon = float(epsilon_values[0])
+
+    for method in ["Classical MC", "I-QAE"]:
+        subset = cast(
+            pd.DataFrame,
+            df_summary[
+                (df_summary["method"] == method)
+                & np.isclose(df_summary["epsilon"], target_epsilon)
+                & (df_summary["mean_calls"].notna())
+            ],
+        ).sort_values(by="n")
+        if subset.empty:
+            continue
+
+        ax.errorbar(
+            subset["n"],
+            subset["mean_calls"],
+            yerr=subset["std_calls"].fillna(0.0),
+            marker=markers.get(method, "o"),
+            markersize=6,
+            label=method,
+            color=palette.get(method, "gray"),
+            linewidth=1.5,
+            capsize=3,
+            elinewidth=1.5,
+        )
+
+    def _log10_exponent_formatter(value: float, _position: int) -> str:
+        if not np.isfinite(value) or value <= 0:
+            return ""
+        exponent = np.log10(value)
+        if np.isclose(exponent, round(exponent), atol=1e-10):
+            return f"{int(round(exponent))}"
+        return ""
+
+    ax.set_title(
+        rf"Equal-Error Scaling ($\epsilon={target_epsilon:g}$)",
+        fontsize=14,
+        pad=10,
+    )
+    ax.set_xlabel(r"Portfolio Size ($n$)", fontsize=12)
+    ax.set_ylabel(
+        r"Total Oracle Calls to Reach $\epsilon$ ($\log_{10}$ scale)",
+        fontsize=12,
+    )
+    ax.set_xticks(sorted(df_summary["n"].dropna().unique().astype(int).tolist()))
+    ax.set_yscale("log")
+    ax.yaxis.set_major_locator(LogLocator(base=10.0))
+    ax.yaxis.set_major_formatter(FuncFormatter(_log10_exponent_formatter))
+    ax.yaxis.set_minor_formatter(NullFormatter())
+    ax.grid(True, which="major", linestyle="--", alpha=0.4)
+    ax.grid(True, which="minor", linestyle=":", alpha=0.2)
+    ax.legend(
+        loc="best", fontsize=10, frameon=True, framealpha=0.9, edgecolor="#cccccc"
+    )
+
+    plt.tight_layout()
+    out_path = f"{figure_dir}/equal_error_scaling.png"
+    plt.savefig(out_path, dpi=300, bbox_inches="tight")
+    print(f"Saved {out_path}")
+
+
 def _plot_empirical_cases(snapshot_dir: str, figure_dir: str) -> None:
     hidden_df = pd.read_csv(f"{snapshot_dir}/empirical_hidden_risk.csv")
 
@@ -444,6 +536,7 @@ def main() -> None:
     _plot_restoration_accuracy(snapshot_dir, figure_dir)
     _plot_quantum_comparison(snapshot_dir, figure_dir)
     _plot_equal_error(snapshot_dir, figure_dir)
+    _plot_equal_error_scaling(snapshot_dir, figure_dir)
     _plot_empirical_cases(snapshot_dir, figure_dir)
 
 

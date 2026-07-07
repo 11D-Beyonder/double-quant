@@ -20,6 +20,7 @@ REQUIRED_SNAPSHOT_FILES = (
         "vol_buckets_series.csv",
         "restoration_accuracy.csv",
         "equal_error_oracle_calls_summary.csv",
+        "equal_error_scaling_summary.csv",
     ]
     + QUANTUM_COMPARISON_FILES
     + EMPIRICAL_CASE_FILES
