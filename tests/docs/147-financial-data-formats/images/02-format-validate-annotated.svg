@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="1432"
+   height="1483"
+   viewBox="0 0 1432 1483"
+   version="1.1"
+   id="svg9"
+   sodipodi:docname="02-format-validate.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   inkscape:export-filename="02-format-validate-annotated.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs9" />
+  <sodipodi:namedview
+     id="namedview9"
+     pagecolor="#ffffff"
+     bordercolor="#cccccc"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="1"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.61452514"
+     inkscape:cx="560.59545"
+     inkscape:cy="596.39545"
+     inkscape:window-width="2560"
+     inkscape:window-height="1440"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg9" />
+  <image
+     href="02-format-validate.png"
+     x="0"
+     y="0"
+     width="1432"
+     height="1483"
+     id="image1" />
+  <g
+     fill="none"
+     stroke="#ff2b2b"
+     stroke-width="4"
+     id="g5"
+     transform="matrix(1.022548,0,0,0.99450277,-4.0625414,-60.92904)">
+    <rect
+       x="28.557467"
+       y="209.63124"
+       width="1362.8491"
+       height="82.010353"
+       rx="7.9582429"
+       id="rect1"
+       style="stroke-width:3.9898" />
+    <rect
+       x="27.971779"
+       y="490.14453"
+       width="318.74268"
+       height="596.20642"
+       rx="2.5246949"
+       id="rect3"
+       style="stroke-width:4.47994" />
+    <rect
+       x="1052.7682"
+       y="502.54791"
+       width="146.7719"
+       height="48.152954"
+       rx="1.1625496"
+       id="rect4"
+       style="stroke-width:1.02773" />
+    <rect
+       x="346.11185"
+       y="779.80841"
+       width="1041.2852"
+       height="489.50119"
+       rx="8.2478027"
+       id="rect5"
+       style="stroke-width:4.33338" />
+  </g>
+  <g
+     font-family="PingFang SC, Microsoft YaHei, SimHei, sans-serif"
+     font-size="26"
+     font-weight="700"
+     id="g9">
+    <rect
+       x="417.45911"
+       y="214.9409"
+       width="382"
+       height="42"
+       rx="6"
+       fill="#ffffff"
+       stroke="#ff2b2b"
+       stroke-width="2"
+       id="rect6" />
+    <text
+       x="435.45911"
+       y="244.9409"
+       fill="#ff2b2b"
+       id="text6">1. 点击数据格式</text>
+    <rect
+       x="897.0694"
+       y="497.60297"
+       width="330"
+       height="42"
+       rx="6"
+       fill="#ffffff"
+       stroke="#ff2b2b"
+       stroke-width="2"
+       id="rect8" />
+    <text
+       x="111.90455"
+       y="1055.8773"
+       fill="#ff2b2b"
+       id="text8">2. 选择格式类型</text>
+    <rect
+       x="386.03909"
+       y="1150.0391"
+       width="387.26352"
+       height="41.921803"
+       rx="6.4904499"
+       fill="#ffffff"
+       stroke="#ff2b2b"
+       stroke-width="2.0782"
+       id="rect9" />
+    <text
+       x="394.50708"
+       y="1180.2877"
+       fill="#ff2b2b"
+       id="text9">4. 字段映射和样例预览继续可见</text>
+    <text
+       x="967.99225"
+       y="528.87708"
+       fill="#ff2b2b"
+       id="text10">3.点击进行验证</text>
+  </g>
+</svg>

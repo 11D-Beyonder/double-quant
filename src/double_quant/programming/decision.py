@@ -5,6 +5,8 @@ from typing import Literal, Self
 
 import numpy as np
 
+from double_quant.algorithm.grover import build_sfs_grover_circuit
+from double_quant.algorithm.rasengan import LinearConstraintBinaryProblem
 from double_quant.common import LinearSystem, QUBOProblem
 from double_quant.programming.base import FinancialProgram
 from double_quant.programming.expression import (
@@ -168,6 +170,93 @@ class DecisionProgram(FinancialProgram):
                 f"got {matrix.shape[0]} constraints for {matrix.shape[1]} variables"
             )
         return LinearSystem(matrix, vector)
+
+    def to_rasengan_problem(
+        self,
+        *,
+        penalty: float = 400.0,
+    ) -> LinearConstraintBinaryProblem:
+        """Convert a binary equality-constrained decision model to Rasengan input."""
+
+        non_binary = [
+            spec.name for spec in self.variables.values() if spec.vtype != "binary"
+        ]
+        if non_binary:
+            raise ValueError(
+                "Rasengan conversion requires binary variables; non-binary groups: "
+                + ", ".join(non_binary)
+            )
+        if any(constraint.sense != "==" for constraint in self.constraints):
+            raise ValueError("Rasengan conversion only supports equality constraints")
+
+        variable_names = self.variable_names
+        objective = self.objective or Expression()
+        self._validate_expression_variables(objective)
+        linear = np.zeros(len(variable_names), dtype=float)
+        quadratic = np.zeros((len(variable_names), len(variable_names)), dtype=float)
+        positions = {name: index for index, name in enumerate(variable_names)}
+
+        for name, coefficient in objective.linear.items():
+            linear[positions[name]] += coefficient
+        for (left, right), coefficient in objective.quadratic.items():
+            quadratic[positions[left], positions[right]] += coefficient
+
+        if self.constraints:
+            rows: list[np.ndarray] = []
+            rhs: list[float] = []
+            for constraint in self.constraints:
+                row, value = constraint.as_linear_row(variable_names)
+                rows.append(row)
+                rhs.append(value)
+            constraints = np.vstack(rows).astype(float)
+            rhs_array = np.asarray(rhs, dtype=float)
+        else:
+            constraints = np.zeros((0, len(variable_names)), dtype=float)
+            rhs_array = np.zeros(0, dtype=float)
+
+        if self.sense == "maximize":
+            sense = "max"
+        elif self.sense in {"minimize", "find"}:
+            sense = "min"
+        else:
+            raise ValueError("Rasengan conversion requires sense='minimize' or 'maximize'")
+
+        return LinearConstraintBinaryProblem(
+            linear=linear,
+            constraints=constraints,
+            rhs=rhs_array,
+            sense=sense,
+            quadratic=quadratic if np.any(quadratic) else None,
+            penalty=penalty,
+            variable_names=tuple(variable_names),
+        )
+
+    def to_grover_circuit(
+        self,
+        *,
+        iterations: int = 1,
+        compressed_qubits: int | None = None,
+        marked_state: str | None = None,
+    ):
+        """Build an SFS-Grover search circuit over this binary decision space."""
+
+        non_binary = [
+            spec.name for spec in self.variables.values() if spec.vtype != "binary"
+        ]
+        if non_binary:
+            raise ValueError(
+                "Grover conversion requires binary variables; non-binary groups: "
+                + ", ".join(non_binary)
+            )
+        logical_variables = len(self.variable_names)
+        if logical_variables == 0:
+            raise ValueError("Grover conversion requires at least one variable")
+        return build_sfs_grover_circuit(
+            logical_variables=logical_variables,
+            iterations=iterations,
+            compressed_qubits=compressed_qubits,
+            marked_state=marked_state,
+        )
 
     def _objective_for_minimization(self) -> Expression:
         if self.objective is None:

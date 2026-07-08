@@ -45,8 +45,5 @@ class ValuationProgram(FinancialProgram):
         if missing_parameters:
             raise ValueError(
                 "Missing measure parameters: " + ", ".join(sorted(missing_parameters))
-            )
+        )
         return self.measure.evaluate(self.data, self.parameters)
-
-
-ValuationProblem = ValuationProgram

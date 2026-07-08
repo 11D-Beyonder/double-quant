@@ -35,24 +35,22 @@ from double_quant.programming.measures import (
     ShapleyRiskContributionMeasure,
 )
 from double_quant.programming.quantum_operator import (
-    BinaryOptimizationOperator,
+    ApplicationCircuitCatalogTemplate,
+    ApplicationCircuitOperator,
+    ApplicationOperatorConfig,
+    EuropeanCallOptionOperator,
     ExpectedShortfallOperator,
-    LinearSystemSolveOperator,
     OperatorResult,
     OperatorSpec,
+    PortfolioOptimizationOperator,
     QuantumFinancialOperatorLibrary,
     ResourceProfile,
-    RiskAttributionOperator,
-    RiskAttributionSoftwareTemplate,
     TemplateResult,
     TemplateStep,
     default_operator_library,
     default_software_templates,
 )
-from double_quant.programming.valuation import (
-    ValuationProblem,
-    ValuationProgram,
-)
+from double_quant.programming.valuation import ValuationProgram
 
 __all__ = [
     "FinancialProgram",
@@ -64,7 +62,6 @@ __all__ = [
     "VariableSpec",
     "VariableType",
     "ValuationProgram",
-    "ValuationProblem",
     "MeasureFunction",
     "ExpectedShortfallMeasure",
     "ShapleyRiskContributionMeasure",
@@ -74,12 +71,13 @@ __all__ = [
     "OperatorResult",
     "QuantumFinancialOperatorLibrary",
     "ExpectedShortfallOperator",
-    "LinearSystemSolveOperator",
-    "BinaryOptimizationOperator",
-    "RiskAttributionOperator",
+    "EuropeanCallOptionOperator",
+    "PortfolioOptimizationOperator",
+    "ApplicationOperatorConfig",
+    "ApplicationCircuitOperator",
     "TemplateStep",
     "TemplateResult",
-    "RiskAttributionSoftwareTemplate",
+    "ApplicationCircuitCatalogTemplate",
     "default_operator_library",
     "default_software_templates",
     "Var",

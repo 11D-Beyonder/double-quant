@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from numbers import Real
-from typing import Literal, TypeVar
+from typing import Any, Literal, TypeVar, cast
 
 import numpy as np
 
@@ -95,7 +95,7 @@ class Expression(Algebraic):
 
     def _mul(self, other: object) -> Expression:
         if _is_scalar(other):
-            return self._scale(float(other))
+            return self._scale(float(cast(Any, other)))
 
         other_expr = _to_expression(other)
         if self.quadratic or other_expr.quadratic:
@@ -321,7 +321,7 @@ def _to_expression(value: object) -> Expression:
     if isinstance(value, Var):
         return value.as_expression()
     if _is_scalar(value):
-        return Expression(constant=float(value))
+        return Expression(constant=float(cast(Any, value)))
     raise TypeError(f"Cannot convert {type(value).__name__} to Expression")
 
 
