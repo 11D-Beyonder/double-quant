@@ -121,23 +121,43 @@ $$
 
 ### 功能测试
 
-- 能够正确识别投资组合中的高风险项
+- 能够正确识别投资组合中的高风险项（Func-2）
     - 使用 TSLA 一只高风险股票，其余都是低波动的红利资产，组成等权投资组合。
     - 对于量子算法计算得到的各资产风险值，TSLA 特别大，其余资产都很小甚至为负数。
     - 对于量子算法计算得到的各资产风险值，各个资产风险值之和，为组合风险值。
+    - 运行 `empirical_scenario` 实验：
 
-- 计算所需操作数
+      ```bash
+      uv run python -m experiments.risk.generate_artifacts -e empirical_scenario --force
+      ```
+
+- 计算所需操作数（Func-12）
     - 能够统计量子电路采样数。
+    - 运行 `equal_error` 实验：
 
-- 计算精度与量子电路参数之间的函数关系测试
-    - 固定采样数不变。
+      ```bash
+      uv run python -m experiments.risk.generate_artifacts -e equal_error --force
+      ```
+
+- 求解空间大小（Func-22）
+  - 实数域
+
+- 计算精度与量子电路参数之间的函数关系测试（Func-32）
+    - 固定采样数不变，或使用特定的 QAE。
     - 变化积分区间寄存器量子比特数。
     - 得到计算精度随量子比特数的变化曲线。
+    - 运行 `quantum_comparison` 实验：
+
+      ```bash
+      uv run python -m experiments.risk.generate_artifacts -e quantum_comparison --force
+      ```
 
 ### 性能测试
 
-- 量子
-    
+- 不少于多项式级别加速测试（Perf-2）
+  - 计算不同算法所需的操作数。
+  - 经典蒙特卡洛采样数为 $n_c$，使用I-QAE的算法采样数为 $n_q$，有 $n_q=n_c^{1/x}$，其中 $x$ 满足是大于 1 的实数即可，比如 $n_q=n_c^{1/2}$ 是二次加速。
+  - 运行 `equal_error` 实验，命令行输出 $x$，$x$ 是数据拟合的结果，不是每个数据点都符合。
 
 ## 6. 验证结果
 
