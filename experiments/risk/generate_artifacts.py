@@ -353,12 +353,87 @@ def _aggregate_equal_error_calls(
     return summary.sort_values(sort_columns).reset_index(drop=True)
 
 
+def _fit_perf_2_speedup(summary: pd.DataFrame) -> dict[str, object]:
+    paired_calls = summary.pivot(
+        index="epsilon",
+        columns="method",
+        values="mean_calls",
+    )
+    required_methods = ["Classical MC", "I-QAE"]
+    missing_methods = [
+        method for method in required_methods if method not in paired_calls.columns
+    ]
+    if missing_methods:
+        raise ValueError(
+            "Cannot fit Perf-2 speedup without methods: "
+            + ", ".join(missing_methods)
+        )
+
+    paired_calls = paired_calls[required_methods].replace([np.inf, -np.inf], np.nan)
+    paired_calls = paired_calls.dropna()
+    paired_calls = paired_calls[
+        (paired_calls["Classical MC"] > 0) & (paired_calls["I-QAE"] > 0)
+    ]
+    if len(paired_calls) < 2:
+        raise ValueError("Perf-2 speedup fit requires at least two paired points")
+
+    log_classical_calls = np.log(paired_calls["Classical MC"].to_numpy())
+    log_quantum_calls = np.log(paired_calls["I-QAE"].to_numpy())
+    denominator = float(np.dot(log_classical_calls, log_classical_calls))
+    if denominator <= 0:
+        raise ValueError("Perf-2 speedup fit requires non-unit classical calls")
+
+    exponent = float(
+        np.dot(log_classical_calls, log_quantum_calls) / denominator
+    )
+    if not np.isfinite(exponent) or exponent <= 0:
+        raise ValueError("Perf-2 speedup fit produced a non-positive exponent")
+
+    acceleration_order = float(1.0 / exponent)
+    residuals = log_quantum_calls - exponent * log_classical_calls
+    log_rmse = float(np.sqrt(np.mean(np.square(residuals))))
+    quantum_log_energy = float(np.dot(log_quantum_calls, log_quantum_calls))
+    uncentered_r_squared = (
+        float(1.0 - np.dot(residuals, residuals) / quantum_log_energy)
+        if quantum_log_energy > 0
+        else 1.0
+    )
+
+    return {
+        "classical_method": "Classical MC",
+        "quantum_method": "I-QAE",
+        "model": "n_q = n_c^(1/x)",
+        "fit_points": len(paired_calls),
+        "exponent_1_over_x": exponent,
+        "acceleration_order_x": acceleration_order,
+        "log_rmse": log_rmse,
+        "uncentered_r_squared": uncentered_r_squared,
+        "passes_perf_2": acceleration_order > 1.0,
+    }
+
+
+def _print_perf_2_speedup(fit: dict[str, object]) -> None:
+    exponent = float(str(fit["exponent_1_over_x"]))
+    acceleration_order = float(str(fit["acceleration_order_x"]))
+    passed = bool(fit["passes_perf_2"])
+    print(
+        "Perf-2 fit: n_q = n_c^(1/x), "
+        f"x = {acceleration_order:.6f} "
+        f"(1/x = {exponent:.6f})"
+    )
+    print(f"Perf-2 result: {'PASS' if passed else 'FAIL'} (requires x > 1)")
+
+
 def _generate_equal_error_snapshot(
     *, returns: pd.DataFrame, snapshot_dir: Path, force: bool
 ) -> None:
     out_path = snapshot_dir / "equal_error_oracle_calls_summary.csv"
-    if not _needs_refresh([out_path], force):
+    fit_path = snapshot_dir / "equal_error_perf_2_fit.csv"
+    if not _needs_refresh([out_path, fit_path], force):
         print("Skip equal-error summary: file already exists")
+        cached_fit = pd.read_csv(fit_path).iloc[0].to_dict()
+        cached_fit["passes_perf_2"] = bool(cached_fit["passes_perf_2"])
+        _print_perf_2_speedup(cached_fit)
         return
 
     epsilons = [1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2, 1e-1]
@@ -488,6 +563,11 @@ def _generate_equal_error_snapshot(
     summary = _aggregate_equal_error_calls(rows, n_rounds=n_rounds)
     summary.to_csv(out_path, index=False)
     print(f"Wrote {out_path}")
+
+    perf_2_fit = _fit_perf_2_speedup(summary)
+    pd.DataFrame([perf_2_fit]).to_csv(fit_path, index=False)
+    print(f"Wrote {fit_path}")
+    _print_perf_2_speedup(perf_2_fit)
 
 
 def _generate_equal_error_scaling_snapshot(
@@ -832,6 +912,8 @@ def main() -> None:
                 "mlqae_eval_qubits": [2, 3, 4, 5, 6],
                 "fae_maxiters": [3, 4, 5, 6, 7],
                 "fae_delta": 0.05,
+                "perf_2_fit_model": "n_q = n_c^(1/x)",
+                "perf_2_pass_condition": "x > 1",
             },
             "equal_error_scaling": {
                 "target_epsilons": [5e-2],

@@ -159,22 +159,16 @@ $$
   - 经典蒙特卡洛采样数为 $n_c$，使用I-QAE的算法采样数为 $n_q$，有 $n_q=n_c^{1/x}$，其中 $x$ 满足是大于 1 的实数即可，比如 $n_q=n_c^{1/2}$ 是二次加速。
   - 运行 `equal_error` 实验，命令行输出 $x$，$x$ 是数据拟合的结果，不是每个数据点都符合。
 
-## 6. 验证结果
+    ```bash
+    uv run python -m experiments.risk.generate_artifacts -e equal_error --force
+    ```
 
-已有实验结果：
+    实验完成后，程序会在命令行输出拟合得到的 $x$ 及 Perf-2 判定，例如：
 
-```text
-实验窗口 = 2020-04-01 ~ 2022-04-01
-风险度量 = ES, alpha = 0.95
-风险分层平均波动率 = Low 10.1%, Mid 18.1%, High 38.7%
-RS 超可加性验证 = 0 / 5000 违例
-ES 直接计算 vs RS 还原 MAE = 5.64e-18
-n=5, n_l=6, Statevector mean relative error = 0.0013
-epsilon=0.05, Classical MC mean calls = 200
-epsilon=0.05, I-QAE mean calls = 1
-I-QAE 采样数减少 = 99.5%
-```
+    ```text
+    Perf-2 fit: n_q = n_c^(1/x), x = 1.283297 (1/x = 0.779243)
+    Perf-2 result: PASS (requires x > 1)
+    ```
 
-实证组合中，TSLA 的资本权重为 $10\%$，但 $\operatorname{SRC}$ 占比约为 $105.7\%$，风险贡献放大约 $10.57\times$；TLT、IEF、GOVT、SHY 等债券 ETF 的 $\operatorname{SRC}$ 占比为负，体现对冲资产的防御作用。
+    同时生成 `docs/assets/risk/data/equal_error_perf_2_fit.csv`。当命令行显示 `PASS`，且该文件中的 `acceleration_order_x` 大于 1、`passes_perf_2` 为 `True` 时，表示拟合结果满足不少于多项式级别加速要求，Perf-2 测试通过。由于 $x$ 由实验数据拟合得到，具体数值可能随实验结果变化。
 
-对应实验产物见 `docs/assets/risk/` 和 `docs/assets/risk/data/`。

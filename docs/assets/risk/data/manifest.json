@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-07-02T16:01:36.931446+00:00",
+  "generated_at": "2026-07-19T07:25:18.566112+00:00",
   "params": {
     "force": false,
     "selected_experiments": [
-      "equal_error_scaling"
+      "equal_error"
     ],
     "windows": {
       "start": "2020-04-01",
@@ -77,7 +77,9 @@
         6,
         7
       ],
-      "fae_delta": 0.05
+      "fae_delta": 0.05,
+      "perf_2_fit_model": "n_q = n_c^(1/x)",
+      "perf_2_pass_condition": "x > 1"
     },
     "equal_error_scaling": {
       "target_epsilons": [
