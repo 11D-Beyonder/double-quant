@@ -1,3 +1,5 @@
+from typing import Any, cast
+
 import numpy as np
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 from qiskit.circuit.library import BlueprintCircuit, StatePreparation, UCRYGate
@@ -265,6 +267,17 @@ class QuantumShapleyCalculator(ShapleyCalculator):
         been computed yet."""
         return self._oracle_call_counts[player_index]
 
+    def build_player_circuit(self, target_player: int) -> tuple[QuantumCircuit, float]:
+        """Build the quantum Shapley amplitude circuit for one target player.
+
+        The returned float is the contribution normalization factor used to
+        recover the player's marginal contribution from the output amplitude.
+        """
+        circuit, max_contribution = self._extend_circuit(target_player)
+        if circuit is None:
+            raise RuntimeError("Failed to extend circuit")
+        return circuit, float(max_contribution)
+
     def _run_statevector(
         self, circuit: QuantumCircuit, max_contribution: float
     ) -> tuple[float, int]:
@@ -291,7 +304,8 @@ class QuantumShapleyCalculator(ShapleyCalculator):
 
         sampler = StatevectorSampler()
         job = sampler.run([meas_circuit], shots=shots)
-        counts = job.result()[0].data.out.get_counts()
+        out_register = cast(Any, getattr(job.result()[0].data, "out"))
+        counts = out_register.get_counts()
         good = counts.get("1", 0)
         return float(good / shots * max_contribution), shots
 

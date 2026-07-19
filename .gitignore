@@ -30,6 +30,7 @@ experiments/**/cache/
 .agents/
 docs/superpowers
 .superpowers
+.codex/
 
 # Key
 *.key.json

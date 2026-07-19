@@ -332,7 +332,6 @@ def index_tracking_instance(
 ) -> RasenganProblemInstance:
     """Build sector one-hot asset selection constraints for index tracking."""
     group_sizes = _index_group_sizes(sector_count)
-    exposure_count = 3
     exposures = []
     costs = []
     for sector, size in enumerate(group_sizes):

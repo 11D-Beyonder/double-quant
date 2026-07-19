@@ -12,6 +12,22 @@ class HHLSolver:
     """
 
     @staticmethod
+    def build_circuit(
+        matrix: np.ndarray,
+        vector: np.ndarray,
+        variant: Literal["sapo", "qiskit"] = "sapo",
+        **variant_args,
+    ):
+        """Build the HHL circuit for visual inspection without running extraction."""
+        if variant != "sapo":
+            raise ValueError(
+                "method is only meaningful for default strategy resolution currently; "
+                "leave method='sapo' when passing transform_strategy"
+            )
+        strategy = EigenBasedStrategy(matrix, vector, **variant_args)
+        return strategy.build_circuit()
+
+    @staticmethod
     def solve(
         matrix: np.ndarray,
         vector: np.ndarray,
