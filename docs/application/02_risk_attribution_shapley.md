@@ -172,3 +172,13 @@ $$
 
     同时生成 `docs/assets/risk/data/equal_error_perf_2_fit.csv`。当命令行显示 `PASS`，且该文件中的 `acceleration_order_x` 大于 1、`passes_perf_2` 为 `True` 时，表示拟合结果满足不少于多项式级别加速要求，Perf-2 测试通过。由于 $x$ 由实验数据拟合得到，具体数值可能随实验结果变化。
 
+- 不同 QAE 之间的测试（Perf14、Perf24）
+  - 其他条件相同，最优秀的QAE和最差的QAE之间，计算精度差距 40%。
+  - 其他条件相同，最优秀的QAE和最差的QAE之间，量子迭代数量差距 50%。
+  - 运行 `qae_comparison` 实验：
+
+    ```bash
+    uv run python -m experiments.risk.generate_artifacts -e qae_comparison --force
+    ```
+
+    实验以平均相对误差衡量计算精度，以所有资产的 oracle 调用总数衡量量子电路用量。两项指标均按 `(最差值 - 最优值) / 最差值` 计算差距。

@@ -137,6 +137,21 @@ For fixed target accuracy ε = 5×10⁻², the minimum total oracle calls requir
 
 ---
 
+## Experiment 7: QAE Comparison (`qae_comparison`)
+
+**Question:** Under the same portfolio and interval-register conditions, do the best and worst QAE variants differ by at least 40% in accuracy and 50% in quantum-circuit usage?
+
+**Method:** Eight random 5-asset portfolios (2 high-volatility, 2 mid-volatility, and 1 low-volatility asset) are evaluated with I-QAE (epsilon=0.01, alpha=0.01), ML-QAE (4 evaluation qubits), and F-QAE (delta=0.05, maxiter=5). All methods use the same portfolios and `n_l=6`. Accuracy is measured by mean relative error against exact ES-based SRC, and circuit usage is measured by total oracle calls across all five assets.
+
+For both lower-is-better metrics, the relative gap is `(worst - best) / worst`. The experiment passes when the accuracy gap is at least 40% and the oracle-call gap is at least 50%.
+
+**Outputs:**
+- `docs/assets/risk/data/qae_comparison_runs.csv` - per-round error and oracle calls
+- `docs/assets/risk/data/qae_comparison_summary.csv` - per-method mean and standard deviation
+- `docs/assets/risk/data/qae_comparison_assessment.csv` - thresholds and PASS/FAIL results
+
+---
+
 ## File Map
 
 ```
