@@ -1,0 +1,70 @@
+{
+  "测试项": "Func-5",
+  "测试类型": "算法功能测试",
+  "测试算法": "去中心化金融管理算法",
+  "我们的方法": "SFS+Grover 压缩搜索电路",
+  "baseline": "普通 Grover 量子搜索电路",
+  "是否测试通过": true,
+  "检查结果": [
+    {
+      "检查项": "算法技术报告存在",
+      "路径": "third/5-Func-5/out/reports/report.md",
+      "是否通过": true
+    },
+    {
+      "检查项": "应用算法封装存在",
+      "路径": "src/double_quant/application/defi_management.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "量子算法电路组件存在",
+      "路径": "src/double_quant/algorithm/grover/circuit.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "量子 baseline 组件存在",
+      "路径": "src/double_quant/algorithm/grover/baseline.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 15-Func-15 存在",
+      "路径": "third/15-Func-15",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 25-Func-25 存在",
+      "路径": "third/25-Func-25",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 35-Func-35 存在",
+      "路径": "third/35-Func-35",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 46-Perf-5 存在",
+      "路径": "third/46-Perf-5",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 58-Perf-17 存在",
+      "路径": "third/58-Perf-17",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 68-Perf-27 存在",
+      "路径": "third/68-Perf-27",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 124-Perf-45 存在",
+      "路径": "third/124-Perf-45",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 134-Perf-55 存在",
+      "路径": "third/134-Perf-55",
+      "是否通过": true
+    }
+  ]
+}

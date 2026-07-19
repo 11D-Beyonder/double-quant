@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-07-02T16:01:36.931446+00:00",
+  "generated_at": "2026-07-19T08:55:08.067869+00:00",
   "params": {
     "force": false,
     "selected_experiments": [
-      "equal_error_scaling"
+      "qae_comparison"
     ],
     "windows": {
       "start": "2020-04-01",
@@ -28,6 +28,28 @@
         "epsilon": 0.01,
         "alpha": 0.01
       }
+    },
+    "qae_comparison": {
+      "n_rounds": 8,
+      "n_players": 5,
+      "n_l_quantum": 6,
+      "methods": {
+        "I-QAE": {
+          "epsilon": 0.01,
+          "alpha": 0.01
+        },
+        "ML-QAE": {
+          "num_eval_qubits": 4
+        },
+        "F-QAE": {
+          "delta": 0.05,
+          "maxiter": 5
+        }
+      },
+      "accuracy_gap_threshold": 0.4,
+      "circuit_gap_threshold": 0.5,
+      "gap_formula": "(worst - best) / worst",
+      "circuit_metric": "total_oracle_calls_for_all_players"
     },
     "equal_error": {
       "epsilons": [
@@ -77,7 +99,9 @@
         6,
         7
       ],
-      "fae_delta": 0.05
+      "fae_delta": 0.05,
+      "perf_2_fit_model": "n_q = n_c^(1/x)",
+      "perf_2_pass_condition": "x > 1"
     },
     "equal_error_scaling": {
       "target_epsilons": [

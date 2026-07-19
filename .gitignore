@@ -31,3 +31,6 @@ experiments/**/cache/
 docs/superpowers
 .superpowers
 .codex/
+
+# Key
+*.key.json

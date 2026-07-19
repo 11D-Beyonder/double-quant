@@ -26,6 +26,7 @@ EXPERIMENT_CHOICES = (
     "volatility",
     "restoration",
     "quantum_comparison",
+    "qae_comparison",
     "equal_error",
     "equal_error_scaling",
     "empirical_scenario",
@@ -262,6 +263,176 @@ def _mean_relative_error(estimate: list[float], exact: list[float]) -> float:
     return float(np.mean(rel_errors)) if rel_errors else 0.0
 
 
+def _relative_improvement(best_value: float, worst_value: float) -> float:
+    if worst_value <= 0:
+        return 0.0
+    return float((worst_value - best_value) / worst_value)
+
+
+def _print_qae_comparison_assessment(assessment: pd.DataFrame) -> None:
+    for row in assessment.itertuples(index=False):
+        passed_value = row.passes_threshold
+        passed = (
+            passed_value
+            if isinstance(passed_value, bool)
+            else str(passed_value).lower() == "true"
+        )
+        print(
+            f"QAE comparison {row.metric}: {float(row.relative_gap):.2%} "
+            f"(best={row.best_method}, worst={row.worst_method}) - "
+            f"{'PASS' if passed else 'FAIL'} "
+            f"(requires >= {float(row.required_gap):.0%})"
+        )
+
+    overall_passed = all(
+        value if isinstance(value, bool) else str(value).lower() == "true"
+        for value in assessment["passes_threshold"].tolist()
+    )
+    print(f"QAE comparison result: {'PASS' if overall_passed else 'FAIL'}")
+
+
+def _generate_qae_comparison_snapshots(
+    *, returns: pd.DataFrame, snapshot_dir: Path, force: bool
+) -> None:
+    runs_path = snapshot_dir / "qae_comparison_runs.csv"
+    summary_path = snapshot_dir / "qae_comparison_summary.csv"
+    assessment_path = snapshot_dir / "qae_comparison_assessment.csv"
+    target_paths = [runs_path, summary_path, assessment_path]
+    if not _needs_refresh(target_paths, force):
+        print("Skip QAE comparison snapshots: files already exist")
+        _print_qae_comparison_assessment(pd.read_csv(assessment_path))
+        return
+
+    n_rounds = 8
+    n_players = 5
+    n_l_quantum = 6
+    accuracy_gap_threshold = 0.40
+    circuit_gap_threshold = 0.50
+    methods: list[
+        tuple[
+            Literal["qae_iqae", "qae_mlqae", "qae_fae"],
+            QAEOptions,
+            str,
+        ]
+    ] = [
+        ("qae_iqae", QAEOptions(epsilon=0.01, alpha=0.01), "I-QAE"),
+        ("qae_mlqae", QAEOptions(num_eval_qubits=4), "ML-QAE"),
+        ("qae_fae", QAEOptions(delta=0.05, maxiter=5), "F-QAE"),
+    ]
+
+    buckets = divide_by_volatility(returns, [0.3, 0.7])
+    low_assets, mid_assets, high_assets = buckets[0], buckets[1], buckets[2]
+    rng = np.random.default_rng(seed=2032)
+
+    rows: list[dict[str, object]] = []
+    for round_idx in range(n_rounds):
+        sampled = (
+            rng.choice(high_assets, size=2, replace=False).tolist()
+            + rng.choice(mid_assets, size=2, replace=False).tolist()
+            + rng.choice(low_assets, size=1, replace=False).tolist()
+        )
+        ret_sub = returns.loc[:, sampled]
+        exact_src_by_asset = RiskAttributor(
+            ret_sub,
+            BinaryEnumerationCalculator,
+            mode="es",
+        ).attribute()
+        exact_src = [float(exact_src_by_asset[asset]) for asset in sampled]
+        value_function = RiskSavingValueFunction(ret_sub)
+
+        for extraction_mode, options, method in methods:
+            calculator = QuantumShapleyCalculator(
+                n_players,
+                value_function,
+                internal_qubits_num=n_l_quantum,
+                internal_multiplier=1,
+                extraction_mode=extraction_mode,
+                options=options,
+            )
+            risk_saving_shapley = calculator.get_all()
+            estimated_src = [
+                float(value_function.individual_es[asset] - risk_saving_shapley[i])
+                for i, asset in enumerate(sampled)
+            ]
+            total_oracle_calls = _total_oracle_count(calculator, n_players)
+            if total_oracle_calls is None:
+                raise RuntimeError(f"{method} did not report oracle-call counts")
+
+            rows.append(
+                {
+                    "round": round_idx,
+                    "method": method,
+                    "assets": ",".join(sampled),
+                    "n": n_players,
+                    "n_l": n_l_quantum,
+                    "mean_relative_error": _mean_relative_error(
+                        estimated_src, exact_src
+                    ),
+                    "total_oracle_calls": total_oracle_calls,
+                }
+            )
+
+        print(f"QAE comparison: {round_idx + 1}/{n_rounds}")
+
+    runs = pd.DataFrame(rows)
+    summary = (
+        runs.groupby("method", as_index=False)
+        .agg(
+            mean_relative_error=("mean_relative_error", "mean"),
+            std_relative_error=("mean_relative_error", "std"),
+            mean_oracle_calls=("total_oracle_calls", "mean"),
+            std_oracle_calls=("total_oracle_calls", "std"),
+        )
+        .sort_values("method")
+        .reset_index(drop=True)
+    )
+
+    accuracy_best = summary.loc[summary["mean_relative_error"].idxmin()]
+    accuracy_worst = summary.loc[summary["mean_relative_error"].idxmax()]
+    circuit_best = summary.loc[summary["mean_oracle_calls"].idxmin()]
+    circuit_worst = summary.loc[summary["mean_oracle_calls"].idxmax()]
+    accuracy_gap = _relative_improvement(
+        float(accuracy_best["mean_relative_error"]),
+        float(accuracy_worst["mean_relative_error"]),
+    )
+    circuit_gap = _relative_improvement(
+        float(circuit_best["mean_oracle_calls"]),
+        float(circuit_worst["mean_oracle_calls"]),
+    )
+    assessment = pd.DataFrame(
+        [
+            {
+                "metric": "accuracy_gap",
+                "best_method": accuracy_best["method"],
+                "worst_method": accuracy_worst["method"],
+                "best_value": accuracy_best["mean_relative_error"],
+                "worst_value": accuracy_worst["mean_relative_error"],
+                "relative_gap": accuracy_gap,
+                "required_gap": accuracy_gap_threshold,
+                "passes_threshold": accuracy_gap >= accuracy_gap_threshold,
+            },
+            {
+                "metric": "circuit_gap",
+                "best_method": circuit_best["method"],
+                "worst_method": circuit_worst["method"],
+                "best_value": circuit_best["mean_oracle_calls"],
+                "worst_value": circuit_worst["mean_oracle_calls"],
+                "relative_gap": circuit_gap,
+                "required_gap": circuit_gap_threshold,
+                "passes_threshold": circuit_gap >= circuit_gap_threshold,
+            },
+        ]
+    )
+
+    runs.to_csv(runs_path, index=False)
+    summary.to_csv(summary_path, index=False)
+    assessment.to_csv(assessment_path, index=False)
+    print(f"Wrote {runs_path}")
+    print(f"Wrote {summary_path}")
+    print(f"Wrote {assessment_path}")
+    _print_qae_comparison_assessment(assessment)
+
+
 def _min_calls_reaching_epsilon(
     points: list[tuple[int, float]], epsilon: float
 ) -> int | None:
@@ -353,12 +524,87 @@ def _aggregate_equal_error_calls(
     return summary.sort_values(sort_columns).reset_index(drop=True)
 
 
+def _fit_perf_2_speedup(summary: pd.DataFrame) -> dict[str, object]:
+    paired_calls = summary.pivot(
+        index="epsilon",
+        columns="method",
+        values="mean_calls",
+    )
+    required_methods = ["Classical MC", "I-QAE"]
+    missing_methods = [
+        method for method in required_methods if method not in paired_calls.columns
+    ]
+    if missing_methods:
+        raise ValueError(
+            "Cannot fit Perf-2 speedup without methods: "
+            + ", ".join(missing_methods)
+        )
+
+    paired_calls = paired_calls[required_methods].replace([np.inf, -np.inf], np.nan)
+    paired_calls = paired_calls.dropna()
+    paired_calls = paired_calls[
+        (paired_calls["Classical MC"] > 0) & (paired_calls["I-QAE"] > 0)
+    ]
+    if len(paired_calls) < 2:
+        raise ValueError("Perf-2 speedup fit requires at least two paired points")
+
+    log_classical_calls = np.log(paired_calls["Classical MC"].to_numpy())
+    log_quantum_calls = np.log(paired_calls["I-QAE"].to_numpy())
+    denominator = float(np.dot(log_classical_calls, log_classical_calls))
+    if denominator <= 0:
+        raise ValueError("Perf-2 speedup fit requires non-unit classical calls")
+
+    exponent = float(
+        np.dot(log_classical_calls, log_quantum_calls) / denominator
+    )
+    if not np.isfinite(exponent) or exponent <= 0:
+        raise ValueError("Perf-2 speedup fit produced a non-positive exponent")
+
+    acceleration_order = float(1.0 / exponent)
+    residuals = log_quantum_calls - exponent * log_classical_calls
+    log_rmse = float(np.sqrt(np.mean(np.square(residuals))))
+    quantum_log_energy = float(np.dot(log_quantum_calls, log_quantum_calls))
+    uncentered_r_squared = (
+        float(1.0 - np.dot(residuals, residuals) / quantum_log_energy)
+        if quantum_log_energy > 0
+        else 1.0
+    )
+
+    return {
+        "classical_method": "Classical MC",
+        "quantum_method": "I-QAE",
+        "model": "n_q = n_c^(1/x)",
+        "fit_points": len(paired_calls),
+        "exponent_1_over_x": exponent,
+        "acceleration_order_x": acceleration_order,
+        "log_rmse": log_rmse,
+        "uncentered_r_squared": uncentered_r_squared,
+        "passes_perf_2": acceleration_order > 1.0,
+    }
+
+
+def _print_perf_2_speedup(fit: dict[str, object]) -> None:
+    exponent = float(str(fit["exponent_1_over_x"]))
+    acceleration_order = float(str(fit["acceleration_order_x"]))
+    passed = bool(fit["passes_perf_2"])
+    print(
+        "Perf-2 fit: n_q = n_c^(1/x), "
+        f"x = {acceleration_order:.6f} "
+        f"(1/x = {exponent:.6f})"
+    )
+    print(f"Perf-2 result: {'PASS' if passed else 'FAIL'} (requires x > 1)")
+
+
 def _generate_equal_error_snapshot(
     *, returns: pd.DataFrame, snapshot_dir: Path, force: bool
 ) -> None:
     out_path = snapshot_dir / "equal_error_oracle_calls_summary.csv"
-    if not _needs_refresh([out_path], force):
+    fit_path = snapshot_dir / "equal_error_perf_2_fit.csv"
+    if not _needs_refresh([out_path, fit_path], force):
         print("Skip equal-error summary: file already exists")
+        cached_fit = pd.read_csv(fit_path).iloc[0].to_dict()
+        cached_fit["passes_perf_2"] = bool(cached_fit["passes_perf_2"])
+        _print_perf_2_speedup(cached_fit)
         return
 
     epsilons = [1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2, 1e-1]
@@ -488,6 +734,11 @@ def _generate_equal_error_snapshot(
     summary = _aggregate_equal_error_calls(rows, n_rounds=n_rounds)
     summary.to_csv(out_path, index=False)
     print(f"Wrote {out_path}")
+
+    perf_2_fit = _fit_perf_2_speedup(summary)
+    pd.DataFrame([perf_2_fit]).to_csv(fit_path, index=False)
+    print(f"Wrote {fit_path}")
+    _print_perf_2_speedup(perf_2_fit)
 
 
 def _generate_equal_error_scaling_snapshot(
@@ -779,6 +1030,12 @@ def main() -> None:
             snapshot_dir=paths.snapshot_dir,
             force=args.force,
         )
+    if "qae_comparison" in selected_experiments:
+        _generate_qae_comparison_snapshots(
+            returns=returns,
+            snapshot_dir=paths.snapshot_dir,
+            force=args.force,
+        )
     if "equal_error" in selected_experiments:
         _generate_equal_error_snapshot(
             returns=returns,
@@ -810,6 +1067,20 @@ def main() -> None:
                 "qubit_range": [2, 3, 4, 5, 6],
                 "iqae_options": {"epsilon": 0.01, "alpha": 0.01},
             },
+            "qae_comparison": {
+                "n_rounds": 8,
+                "n_players": 5,
+                "n_l_quantum": 6,
+                "methods": {
+                    "I-QAE": {"epsilon": 0.01, "alpha": 0.01},
+                    "ML-QAE": {"num_eval_qubits": 4},
+                    "F-QAE": {"delta": 0.05, "maxiter": 5},
+                },
+                "accuracy_gap_threshold": 0.40,
+                "circuit_gap_threshold": 0.50,
+                "gap_formula": "(worst - best) / worst",
+                "circuit_metric": "total_oracle_calls_for_all_players",
+            },
             "equal_error": {
                 "epsilons": [1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2, 1e-1],
                 "n_rounds": 8,
@@ -832,6 +1103,8 @@ def main() -> None:
                 "mlqae_eval_qubits": [2, 3, 4, 5, 6],
                 "fae_maxiters": [3, 4, 5, 6, 7],
                 "fae_delta": 0.05,
+                "perf_2_fit_model": "n_q = n_c^(1/x)",
+                "perf_2_pass_condition": "x > 1",
             },
             "equal_error_scaling": {
                 "target_epsilons": [5e-2],

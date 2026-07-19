@@ -1,0 +1,70 @@
+{
+  "测试项": "Func-7",
+  "测试类型": "算法功能测试",
+  "测试算法": "支付与结算系统算法",
+  "我们的方法": "Rasengan 流动性中性搜索电路",
+  "baseline": "Penalty-QAOA 电路",
+  "是否测试通过": true,
+  "检查结果": [
+    {
+      "检查项": "算法技术报告存在",
+      "路径": "third/7-Func-7/out/reports/report.md",
+      "是否通过": true
+    },
+    {
+      "检查项": "应用算法封装存在",
+      "路径": "src/double_quant/application/payment_settlement.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "量子算法电路组件存在",
+      "路径": "src/double_quant/algorithm/rasengan/circuit.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "量子 baseline 组件存在",
+      "路径": "src/double_quant/algorithm/rasengan/baseline.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 17-Func-17 存在",
+      "路径": "third/17-Func-17",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 27-Func-27 存在",
+      "路径": "third/27-Func-27",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 37-Func-37 存在",
+      "路径": "third/37-Func-37",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 48-Perf-7 存在",
+      "路径": "third/48-Perf-7",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 60-Perf-19 存在",
+      "路径": "third/60-Perf-19",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 70-Perf-29 存在",
+      "路径": "third/70-Perf-29",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 126-Perf-47 存在",
+      "路径": "third/126-Perf-47",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 136-Perf-57 存在",
+      "路径": "third/136-Perf-57",
+      "是否通过": true
+    }
+  ]
+}
