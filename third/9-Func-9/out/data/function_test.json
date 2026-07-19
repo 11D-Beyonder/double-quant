@@ -1,0 +1,70 @@
+{
+  "测试项": "Func-9",
+  "测试类型": "算法功能测试",
+  "测试算法": "银行网点布局优化算法",
+  "我们的方法": "SFS-Grover 设施选址搜索电路",
+  "baseline": "普通 Grover 量子搜索电路",
+  "是否测试通过": true,
+  "检查结果": [
+    {
+      "检查项": "算法技术报告存在",
+      "路径": "third/9-Func-9/out/reports/report.md",
+      "是否通过": true
+    },
+    {
+      "检查项": "应用算法封装存在",
+      "路径": "src/double_quant/application/branch_location.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "量子算法电路组件存在",
+      "路径": "src/double_quant/algorithm/grover/circuit.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "量子 baseline 组件存在",
+      "路径": "src/double_quant/algorithm/grover/baseline.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 19-Func-19 存在",
+      "路径": "third/19-Func-19",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 29-Func-29 存在",
+      "路径": "third/29-Func-29",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 39-Func-39 存在",
+      "路径": "third/39-Func-39",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 50-Perf-9 存在",
+      "路径": "third/50-Perf-9",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 62-Perf-21 存在",
+      "路径": "third/62-Perf-21",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 72-Perf-31 存在",
+      "路径": "third/72-Perf-31",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 128-Perf-49 存在",
+      "路径": "third/128-Perf-49",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 138-Perf-59 存在",
+      "路径": "third/138-Perf-59",
+      "是否通过": true
+    }
+  ]
+}

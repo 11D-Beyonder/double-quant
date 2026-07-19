@@ -1,0 +1,70 @@
+{
+  "测试项": "Func-8",
+  "测试类型": "算法功能测试",
+  "测试算法": "贷款发放决策算法",
+  "我们的方法": "Rasengan 分组特征选择电路",
+  "baseline": "Penalty-QAOA 电路",
+  "是否测试通过": true,
+  "检查结果": [
+    {
+      "检查项": "算法技术报告存在",
+      "路径": "third/8-Func-8/out/reports/report.md",
+      "是否通过": true
+    },
+    {
+      "检查项": "应用算法封装存在",
+      "路径": "src/double_quant/application/loan_decision.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "量子算法电路组件存在",
+      "路径": "src/double_quant/algorithm/rasengan/circuit.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "量子 baseline 组件存在",
+      "路径": "src/double_quant/algorithm/rasengan/baseline.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 18-Func-18 存在",
+      "路径": "third/18-Func-18",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 28-Func-28 存在",
+      "路径": "third/28-Func-28",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 38-Func-38 存在",
+      "路径": "third/38-Func-38",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 49-Perf-8 存在",
+      "路径": "third/49-Perf-8",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 61-Perf-20 存在",
+      "路径": "third/61-Perf-20",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 71-Perf-30 存在",
+      "路径": "third/71-Perf-30",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 127-Perf-48 存在",
+      "路径": "third/127-Perf-48",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 137-Perf-58 存在",
+      "路径": "third/137-Perf-58",
+      "是否通过": true
+    }
+  ]
+}

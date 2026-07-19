@@ -1,0 +1,70 @@
+{
+  "测试项": "Func-6",
+  "测试类型": "算法功能测试",
+  "测试算法": "反欺诈监测算法",
+  "我们的方法": "Rasengan 约束环路搜索电路",
+  "baseline": "Penalty-QAOA 电路",
+  "是否测试通过": true,
+  "检查结果": [
+    {
+      "检查项": "算法技术报告存在",
+      "路径": "third/6-Func-6/out/reports/report.md",
+      "是否通过": true
+    },
+    {
+      "检查项": "应用算法封装存在",
+      "路径": "src/double_quant/application/antifraud_monitoring.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "量子算法电路组件存在",
+      "路径": "src/double_quant/algorithm/rasengan/circuit.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "量子 baseline 组件存在",
+      "路径": "src/double_quant/algorithm/rasengan/baseline.py",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 16-Func-16 存在",
+      "路径": "third/16-Func-16",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 26-Func-26 存在",
+      "路径": "third/26-Func-26",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 36-Func-36 存在",
+      "路径": "third/36-Func-36",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 47-Perf-6 存在",
+      "路径": "third/47-Perf-6",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 59-Perf-18 存在",
+      "路径": "third/59-Perf-18",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 69-Perf-28 存在",
+      "路径": "third/69-Perf-28",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 125-Perf-46 存在",
+      "路径": "third/125-Perf-46",
+      "是否通过": true
+    },
+    {
+      "检查项": "关联测试目录 135-Perf-56 存在",
+      "路径": "third/135-Perf-56",
+      "是否通过": true
+    }
+  ]
+}
