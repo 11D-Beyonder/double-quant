@@ -1,0 +1,2 @@
+classical_method,quantum_method,model,fit_points,exponent_1_over_x,acceleration_order_x,log_rmse,uncentered_r_squared,passes_perf_2
+Classical MC,I-QAE,n_q = n_c^(1/x),7,0.7792431133731724,1.2832965512793812,2.2683195983724507,0.9034487832693121,True

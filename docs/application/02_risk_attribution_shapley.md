@@ -121,40 +121,64 @@ $$
 
 ### 功能测试
 
-- 能够正确识别投资组合中的高风险项
+- 能够正确识别投资组合中的高风险项（Func-2）
     - 使用 TSLA 一只高风险股票，其余都是低波动的红利资产，组成等权投资组合。
     - 对于量子算法计算得到的各资产风险值，TSLA 特别大，其余资产都很小甚至为负数。
     - 对于量子算法计算得到的各资产风险值，各个资产风险值之和，为组合风险值。
+    - 运行 `empirical_scenario` 实验：
 
-- 计算所需操作数
+      ```bash
+      uv run python -m experiments.risk.generate_artifacts -e empirical_scenario --force
+      ```
+
+- 计算所需操作数（Func-12）
     - 能够统计量子电路采样数。
+    - 运行 `equal_error` 实验：
 
-- 计算精度与量子电路参数之间的函数关系测试
-    - 固定采样数不变。
+      ```bash
+      uv run python -m experiments.risk.generate_artifacts -e equal_error --force
+      ```
+
+- 求解空间大小（Func-22）
+  - 实数域
+
+- 计算精度与量子电路参数之间的函数关系测试（Func-32）
+    - 固定采样数不变，或使用特定的 QAE。
     - 变化积分区间寄存器量子比特数。
     - 得到计算精度随量子比特数的变化曲线。
+    - 运行 `quantum_comparison` 实验：
+
+      ```bash
+      uv run python -m experiments.risk.generate_artifacts -e quantum_comparison --force
+      ```
 
 ### 性能测试
 
-- 量子
-    
+- 不少于多项式级别加速测试（Perf-2）
+  - 计算不同算法所需的操作数。
+  - 经典蒙特卡洛采样数为 $n_c$，使用I-QAE的算法采样数为 $n_q$，有 $n_q=n_c^{1/x}$，其中 $x$ 满足是大于 1 的实数即可，比如 $n_q=n_c^{1/2}$ 是二次加速。
+  - 运行 `equal_error` 实验，命令行输出 $x$，$x$ 是数据拟合的结果，不是每个数据点都符合。
 
-## 6. 验证结果
+    ```bash
+    uv run python -m experiments.risk.generate_artifacts -e equal_error --force
+    ```
 
-已有实验结果：
+    实验完成后，程序会在命令行输出拟合得到的 $x$ 及 Perf-2 判定，例如：
 
-```text
-实验窗口 = 2020-04-01 ~ 2022-04-01
-风险度量 = ES, alpha = 0.95
-风险分层平均波动率 = Low 10.1%, Mid 18.1%, High 38.7%
-RS 超可加性验证 = 0 / 5000 违例
-ES 直接计算 vs RS 还原 MAE = 5.64e-18
-n=5, n_l=6, Statevector mean relative error = 0.0013
-epsilon=0.05, Classical MC mean calls = 200
-epsilon=0.05, I-QAE mean calls = 1
-I-QAE 采样数减少 = 99.5%
-```
+    ```text
+    Perf-2 fit: n_q = n_c^(1/x), x = 1.283297 (1/x = 0.779243)
+    Perf-2 result: PASS (requires x > 1)
+    ```
 
-实证组合中，TSLA 的资本权重为 $10\%$，但 $\operatorname{SRC}$ 占比约为 $105.7\%$，风险贡献放大约 $10.57\times$；TLT、IEF、GOVT、SHY 等债券 ETF 的 $\operatorname{SRC}$ 占比为负，体现对冲资产的防御作用。
+    同时生成 `docs/assets/risk/data/equal_error_perf_2_fit.csv`。当命令行显示 `PASS`，且该文件中的 `acceleration_order_x` 大于 1、`passes_perf_2` 为 `True` 时，表示拟合结果满足不少于多项式级别加速要求，Perf-2 测试通过。由于 $x$ 由实验数据拟合得到，具体数值可能随实验结果变化。
 
-对应实验产物见 `docs/assets/risk/` 和 `docs/assets/risk/data/`。
+- 不同 QAE 之间的测试（Perf14、Perf24）
+  - 其他条件相同，最优秀的QAE和最差的QAE之间，计算精度差距 40%。
+  - 其他条件相同，最优秀的QAE和最差的QAE之间，量子迭代数量差距 50%。
+  - 运行 `qae_comparison` 实验：
+
+    ```bash
+    uv run python -m experiments.risk.generate_artifacts -e qae_comparison --force
+    ```
+
+    实验以平均相对误差衡量计算精度，以所有资产的 oracle 调用总数衡量量子电路用量。两项指标均按 `(最差值 - 最优值) / 最差值` 计算差距。
